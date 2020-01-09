@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+#include <QUaServer>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
 QT_END_NAMESPACE
@@ -17,5 +19,7 @@ public:
 
 private:
     Ui::Dialog *ui;
+
+    QUaServer m_server;
 };
 #endif // DIALOG_H

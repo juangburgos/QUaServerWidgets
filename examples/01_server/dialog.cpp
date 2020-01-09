@@ -6,6 +6,8 @@ Dialog::Dialog(QWidget *parent)
     , ui(new Ui::Dialog)
 {
     ui->setupUi(this);
+    // bind server to widget
+    ui->widgetServer->bindServer(&m_server);
 }
 
 Dialog::~Dialog()
