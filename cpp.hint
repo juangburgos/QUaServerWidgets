@@ -1,8 +1,11 @@
 #define Q_OBJECT
+#define QT_BEGIN_NAMESPACE
+#define QT_END_NAMESPACE
 #define slots
 #define Q_DECLARE_METATYPE()
 #define UA_EXPORT
 #define Q_ENUM()
+#define Q_PROPERTY()
 
 #define _UA_BEGIN_DECLS
 #define LIST_ENTRY
@@ -22,4 +25,5 @@
 #define REMOTECERTIFICATETRUSTED
 #define ISSUERKNOWN
 #define DUALPARENT
-#define PARENTFOUND
+#define PARENTFOUND#define Q_INVOKABLE QT_ANNOTATE_FUNCTION(qt_invokable)
+#define Q_INVOKABLE
