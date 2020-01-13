@@ -124,7 +124,6 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
         return 0;
     }
     // get internal QUaNode reference
-    QPersistentModelIndex persistentParent(parent);
     if (!parent.isValid())
     {
         parentNode = m_rootNode;
@@ -135,10 +134,12 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
         // subscribe to node removed
         QObject::disconnect(parentNode, &QObject::destroyed, this, 0);
         QObject::connect(parentNode, &QObject::destroyed, this,
-        [this, persistentParent]() {
-            QModelIndex parent = persistentParent;
+        [this, parent]() {
             // below can happen when ui gets destroyed (closed)
-            Q_ASSERT(parent.isValid());
+            if (!parent.isValid())
+            {
+                return;
+            }
             // NOTE : there is an issue when removing last child because beginRemoveRows acually calls
             //        rowCount on the parent and checks with an internal assert that the last argment
             //        is less than the parent's row count, which is not true because the child has already
@@ -152,6 +153,7 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
             {
                 grandpaNode->setProperty("rlastchild", true);
             }
+            // TODO : still happening below when deleting parent with a lot of children
             const_cast<QUaNodeModel*>(this)->beginRemoveRows(parent.parent(), parent.row(), parent.row());
             const_cast<QUaNodeModel*>(this)->endRemoveRows();
         });
@@ -159,8 +161,7 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
     // subscribe to new child node added
     QObject::disconnect(parentNode, &QUaNode::childAdded, this, 0);
     QObject::connect(parentNode, &QUaNode::childAdded, this,
-    [this, persistentParent, parentNode](QUaNode* childNode) {
-        QModelIndex parent = persistentParent;
+    [this, parent, parentNode](QUaNode* childNode) {
         // notify views that row has been added
         int rows = parentNode->browseChildren().count();
         const_cast<QUaNodeModel*>(this)->beginInsertRows(parent, rows - 1, rows - 1);
