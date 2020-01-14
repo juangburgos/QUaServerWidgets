@@ -18,14 +18,14 @@ Dialog::Dialog(QWidget *parent)
     // add root instance of extensible object
     auto objs = m_server.objectsFolder();
     auto root  = objs->addChild<QUaBaseObjectExt>("ns=1;s=root");
-    root->setDisplayName("Root");
-    root->setBrowseName("Root");
+    root->setDisplayName("root");
+    root->setBrowseName("root");
     // start server
     m_server.start();
 
     // setup model - view
     auto model = new QUaNodeModel(this);
-    model->bindRootNode(objs);
+    model->bindRootNode(root);
 
     ui->treeView->setModel(model);
 }

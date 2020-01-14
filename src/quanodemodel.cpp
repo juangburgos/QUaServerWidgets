@@ -1,43 +1,85 @@
 #include "quanodemodel.h"
 #include <QUaNode>
 
+class QUaNodeModel::QUaNodeWrapper
+{
+public:
+    explicit QUaNodeWrapper(QUaNode* node, QUaNodeWrapper* parent = nullptr) 
+        : m_node(node), m_parent(parent)
+    {
+        Q_ASSERT_X(m_node, "QUaNodeWrapper", "Invalid node argument");
+        // subscribe to node destruction
+        QObject::connect(m_node, &QObject::destroyed,
+        [this]() {
+            this->m_node = nullptr;
+        });
+        // build children tree
+        for (auto child : m_node->browseChildren())
+        {
+            m_children << new QUaNodeWrapper(child, this);
+        }
+    };
+
+    QUaNodeWrapper::~QUaNodeWrapper()
+    {
+        qDeleteAll(m_children);
+    }
+    // internal data
+    QUaNode* m_node;
+    // NOTE : need index to support model manipulation 
+    //        cannot use createIndex outside Qt's API
+    //        (forbiden even inside a QAbstractItemModel member)
+    //        and for beginRemoveRows and beginInsertRows
+    //        we can only use the indexes provided by the model
+    //        else random crashes occur when manipulating model
+    //        btw do not use QPersistentModelIndex, they get corrupted
+    QModelIndex m_index;
+    // members for tree structure
+    QUaNodeWrapper* m_parent;
+    QList<QUaNodeWrapper*> m_children;
+};
+
 QUaNodeModel::QUaNodeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
-    m_rootNode = nullptr;
+    m_root = nullptr;
 }
 
 void QUaNodeModel::bindRootNode(QUaNode* rootNode/* = nullptr*/)
 {
-    if (m_rootNode == rootNode)
+    this->bindRoot(rootNode ? new QUaNodeWrapper(rootNode) : nullptr);
+}
+
+void QUaNodeModel::bindRoot(QUaNodeWrapper* root)
+{
+    if (m_root == root)
     {
         return;
     }
-    // if old root node was valid, disconnect to recv signals recursivelly
-    if (m_rootNode)
-    {
-        this->disconnectNodeRecursivelly(m_rootNode);
-    }
     // notify views all old data is invalid
     this->beginResetModel();
+    // if old root node was valid, disconnect to recv signals recursivelly
+    if (m_root)
+    {
+        this->unbindNodeRecursivelly(m_root);
+        delete m_root;
+        m_root = nullptr;
+    }
     // copy
-    m_rootNode = rootNode;
+    m_root = root;
+    // subscribe to changes
+    if (m_root)
+    {
+        this->bindRecursivelly(m_root);
+    }
     // notify views new data is available
     this->endResetModel();
-    // subscribe to root node deleted
-    if (m_rootNode)
-    {
-        QObject::connect(m_rootNode, &QObject::destroyed, this,
-        [this]() {
-            this->bindRootNode(nullptr);
-        });
-    }
 }
 
 QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     // no header data if invalid root
-    if (!m_rootNode)
+    if (!m_root)
     {
         return QVariant();
     }
@@ -46,153 +88,112 @@ QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int 
         role == Qt::DisplayRole &&
         section <= 1)
     {
-        return tr("BrowseName");
+        return tr("Display Name");
     }
     return QVariant();
 }
 
-/*
-bool QUaNodeModel::setHeaderData(int section, Qt::Orientation orientation, const QVariant &value, int role)
-{
-    if (value != headerData(section, orientation, role)) {
-        // FIXME: Implement me!
-        emit headerDataChanged(orientation, section, section);
-        return true;
-    }
-    return false;
-}
-*/
-
 QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) const
 {
-    if (!m_rootNode || !this->hasIndex(row, column, parent))
+    if (!m_root || !this->hasIndex(row, column, parent))
     {
         return QModelIndex();
     }
-    QUaNode* parentNode;
+    QUaNodeWrapper* parentNode;
     // invalid parent index is root, else get internal reference
     if (!parent.isValid())
     {
-		parentNode = m_rootNode;
+		parentNode = m_root;
     }
     else
     {
-        parentNode = static_cast<QUaNode*>(parent.internalPointer());
+        parentNode = static_cast<QUaNodeWrapper*>(parent.internalPointer());
     }
     Q_CHECK_PTR(parentNode);
-    // browse n-th child node using QUaNode API
-    auto childrenList = parentNode->browseChildren();
-    QUaNode* childItem = childrenList.count() > row ? parentNode->browseChildren().at(row) : nullptr;
+    // browse n-th child wrapper node
+    QUaNodeWrapper* childItem = parentNode->m_children.count() > row ?
+        parentNode->m_children.at(row) : nullptr;
     if (childItem)
     {
-        return this->createIndex(row, column, childItem);
+        // store index to support model manipulation
+        QModelIndex index = this->createIndex(row, column, childItem);
+        childItem->m_index = index;
+        return index;
     }
     return QModelIndex();
 }
 
 QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
 {
-    if (!m_rootNode || !index.isValid())
+    if (!m_root || !index.isValid())
     {
         return QModelIndex();
     }
+    auto intId = index.internalId();
+    Q_UNUSED(intId);
     // get child and parent node references
-    QUaNode* childNode  = static_cast<QUaNode*>(index.internalPointer());
-    QUaNode* parentNode = static_cast<QUaNode*>(childNode->parent());
+    QUaNodeWrapper* childNode  = static_cast<QUaNodeWrapper*>(index.internalPointer());
     Q_CHECK_PTR(childNode);
+    QUaNodeWrapper* parentNode = static_cast<QUaNodeWrapper*>(childNode->m_parent);
     Q_CHECK_PTR(parentNode);
-    if (parentNode == m_rootNode)
+    if (parentNode == m_root)
     {
-        return QModelIndex();
+        // store index to support model manipulation
+        QModelIndex pIndex = QModelIndex();
+        parentNode->m_index = pIndex;
+        return pIndex;
     }
     // get row of parent if grandparent is valid
     int row = 0;
     int col = 0;
-    QUaNode* grandpaNode = static_cast<QUaNode*>(parentNode->parent());
+    QUaNodeWrapper* grandpaNode = static_cast<QUaNodeWrapper*>(parentNode->m_parent);
     if (grandpaNode)
     {
-        row = grandpaNode->browseChildren().indexOf(parentNode);
+        row = grandpaNode->m_children.indexOf(parentNode);
     }
-    return createIndex(row, col, parentNode);
+    // store index to support model manipulation
+    QModelIndex pIndex = createIndex(row, col, parentNode);
+    parentNode->m_index = pIndex;
+    return pIndex;
 }
 
 int QUaNodeModel::rowCount(const QModelIndex &parent) const
 {
-    QUaNode* parentNode;
-    if (!m_rootNode || parent.column() > 0)
+    QUaNodeWrapper* parentNode;
+    if (!m_root || parent.column() > 0)
     {
         return 0;
     }
-    // get internal QUaNode reference
+    // get internal wrapper reference
     if (!parent.isValid())
     {
-        parentNode = m_rootNode;
+        parentNode = m_root;
     }
     else
     {
-        parentNode = static_cast<QUaNode*>(parent.internalPointer());
-        // subscribe to node removed
-        QObject::disconnect(parentNode, &QObject::destroyed, this, 0);
-        QObject::connect(parentNode, &QObject::destroyed, this,
-        [this, parent]() {
-            // below can happen when ui gets destroyed (closed)
-            if (!parent.isValid())
-            {
-                return;
-            }
-            // NOTE : there is an issue when removing last child because beginRemoveRows acually calls
-            //        rowCount on the parent and checks with an internal assert that the last argment
-            //        is less than the parent's row count, which is not true because the child has already
-            //        been removed by the time this callback is executed. to fix it below, the rowCount is
-            //        artifitially increased by 1 to avoid hitting the assert when removing the last child
-            QUaNode* grandpaNode = parent.parent().isValid() ? 
-                static_cast<QUaNode*>(parent.parent().internalPointer()) : m_rootNode;
-            Q_CHECK_PTR(grandpaNode);
-            Q_ASSERT(grandpaNode->property("rlastchild").toBool() == false);
-            if (grandpaNode->browseChildren().count() == parent.row())
-            {
-                grandpaNode->setProperty("rlastchild", true);
-            }
-            // TODO : still happening below when deleting parent with a lot of children
-            const_cast<QUaNodeModel*>(this)->beginRemoveRows(parent.parent(), parent.row(), parent.row());
-            const_cast<QUaNodeModel*>(this)->endRemoveRows();
-        });
+        parentNode = static_cast<QUaNodeWrapper*>(parent.internalPointer());
     }
-    // subscribe to new child node added
-    QObject::disconnect(parentNode, &QUaNode::childAdded, this, 0);
-    QObject::connect(parentNode, &QUaNode::childAdded, this,
-    [this, parent, parentNode](QUaNode* childNode) {
-        // notify views that row has been added
-        int rows = parentNode->browseChildren().count();
-        const_cast<QUaNodeModel*>(this)->beginInsertRows(parent, rows - 1, rows - 1);
-        const_cast<QUaNodeModel*>(this)->endInsertRows();
-    });
     // return number of children
     Q_CHECK_PTR(parentNode);
-    int childCount = parentNode->browseChildren().count();
-    // fix removing last child issue
-    if (parentNode->property("rlastchild").toBool())
-    {
-        childCount++;
-        parentNode->setProperty("rlastchild", false);
-    }
+    int childCount = parentNode->m_children.count();
     return childCount;
 }
 
 int QUaNodeModel::columnCount(const QModelIndex &parent) const
 {
-    if (!m_rootNode)
+    if (!m_root)
     {
         return 0;
     }
-    // TODO: Implement me! Test with BrowseName
+    // TODO: Implement me!
+    // column 1 is always displayName
     return 1;
 }
 
 QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
 {
     // early exit for inhandled cases
-    if (!m_rootNode || !index.isValid())
+    if (!m_root || !index.isValid())
     {
         return QVariant();
     }
@@ -202,29 +203,10 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
     }
 
     // TODO: Implement me!
-    QUaNode* node = static_cast<QUaNode*>(index.internalPointer());
-    Q_CHECK_PTR(node);
-    return node->browseName();
+    QUaNodeWrapper* node = static_cast<QUaNodeWrapper*>(index.internalPointer());
+    Q_CHECK_PTR(node->m_node);
+    return node->m_node->displayName();
 }
-
-/*
-bool QUaNodeModel::hasChildren(const QModelIndex &parent) const
-{
-    // FIXME: Implement me!
-    return true;
-}
-
-bool QUaNodeModel::canFetchMore(const QModelIndex &parent) const
-{
-    // FIXME: Implement me!
-    return false;
-}
-
-void QUaNodeModel::fetchMore(const QModelIndex &parent)
-{
-    // FIXME: Implement me!
-}
-*/
 
 Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
 {
@@ -232,31 +214,74 @@ Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
     {
         return Qt::NoItemFlags;
     }
-    // TODO: Implement me!
-    //return Qt::ItemIsEditable;
     return QAbstractItemModel::flags(index);
 }
 
-void QUaNodeModel::disconnectNodeRecursivelly(QUaNode* rootNode)
+void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
 {
-    this->disconnect(rootNode);
-    rootNode->disconnect(this);
-    // disconnect children
-    for (auto child : rootNode->browseChildren())
+    // subscribe to node removed
+    QObject::disconnect(node->m_node, &QObject::destroyed, this, 0);
+    QObject::connect(node->m_node, &QObject::destroyed, this,
+    [this, node]() {
+        Q_CHECK_PTR(node);
+        // stop all events for sub-tree so children's QObject::destroyed is not handled
+        this->unbindNodeRecursivelly(node);
+        if (node == m_root)
+        {
+            this->bindRootNode(nullptr);
+            return;
+        }
+        // NOTE : node->m_parent must be valid because (node == m_root) already handled
+        Q_ASSERT(node->m_parent);
+        // only use indexes created by model
+        int row = node->m_index.row();
+        QModelIndex index = node->m_parent->m_index;
+        // notify views that row will be removed
+        this->beginRemoveRows(index, row, row);
+        // remove from parent, destructor deletes wrapper sub-tree recursivelly
+        Q_ASSERT(node == node->m_parent->m_children.at(row));
+        delete node->m_parent->m_children.takeAt(row);
+        // notify views that row removal has finished
+        this->endRemoveRows();
+    });
+    // subscribe to new child node added
+    QObject::disconnect(node->m_node, &QUaNode::childAdded, this, 0);
+    QObject::connect(node->m_node, &QUaNode::childAdded, this,
+    [this, node](QUaNode* childNode) {
+        // get new node's row
+        int row = node->m_children.count();
+        // only use indexes created by model
+        QModelIndex index = node->m_index;
+        // notify views that row will be added
+        this->beginInsertRows(index, row, row);
+        // create new wrapper
+        auto* wrapper = new QUaNodeWrapper(childNode, node);
+        // apprend to parent's children list
+        node->m_children << wrapper;
+        // bind new instance for changes
+        this->bindRecursivelly(wrapper);
+        // notify views that row addition has finished
+        this->endInsertRows();
+    });
+    // TODO : data change with emit dataChanged
+    // recurse children
+    for (auto child : node->m_children)
     {
-        this->disconnectNodeRecursivelly(child);
+        this->bindRecursivelly(child);
     }
 }
 
-/*
-bool QUaNodeModel::setData(const QModelIndex &index, const QVariant &value, int role)
+void QUaNodeModel::unbindNodeRecursivelly(QUaNodeWrapper* node)
 {
-    if (data(index, role) != value) {
-        // FIXME: Implement me!
-        emit dataChanged(index, index, QVector<int>() << role);
-        return true;
+    Q_CHECK_PTR(node);
+    if (node->m_node)
+	{
+		this->disconnect(node->m_node);
+		node->m_node->disconnect(this);
     }
-    return false;
+    // disconnect children
+    for (auto child : node->m_children)
+    {
+        this->unbindNodeRecursivelly(child);
+    }
 }
-*/
-

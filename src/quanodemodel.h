@@ -17,8 +17,6 @@ public:
     // Header:
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-    //bool setHeaderData(int section, Qt::Orientation orientation, const QVariant &value, int role = Qt::EditRole) override;
-
     // Basic functionality:
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &index) const override;
@@ -28,21 +26,16 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-    // Fetch data dynamically:
-    //bool hasChildren(const QModelIndex &parent = QModelIndex()) const override;
-    //bool canFetchMore(const QModelIndex &parent) const override;
-    //void fetchMore(const QModelIndex &parent) override;
-
-    // Editable:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-    //bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
-
 private:
-    QUaNode* m_rootNode;
+    class QUaNodeWrapper;
+    QUaNodeWrapper* m_root;
 
     // disconnect signals to and from the given node
-    void disconnectNodeRecursivelly(QUaNode* rootNode);
+    void bindRoot(QUaNodeWrapper* root);
+    void bindRecursivelly(QUaNodeWrapper* node);
+    void unbindNodeRecursivelly(QUaNodeWrapper* node);
 };
 
 #endif // QUANODEMODEL_H
