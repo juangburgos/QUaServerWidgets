@@ -79,7 +79,7 @@ void QUaNodeModel::bindRoot(QUaNodeWrapper* root)
 QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     // no header data if invalid root
-    if (!m_root)
+    if (!m_root || !m_root->m_node)
     {
         return QVariant();
     }
@@ -95,7 +95,7 @@ QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int 
 
 QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) const
 {
-    if (!m_root || !this->hasIndex(row, column, parent))
+    if (!m_root || !m_root->m_node || !this->hasIndex(row, column, parent))
     {
         return QModelIndex();
     }
@@ -125,7 +125,7 @@ QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) 
 
 QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
 {
-    if (!m_root || !index.isValid())
+    if (!m_root || !m_root->m_node || !index.isValid())
     {
         return QModelIndex();
     }
@@ -159,11 +159,11 @@ QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
 
 int QUaNodeModel::rowCount(const QModelIndex &parent) const
 {
-    QUaNodeWrapper* parentNode;
-    if (!m_root || parent.column() > 0)
+    if (!m_root || !m_root->m_node || parent.column() > 0)
     {
         return 0;
     }
+    QUaNodeWrapper* parentNode;
     // get internal wrapper reference
     if (!parent.isValid())
     {
@@ -181,11 +181,11 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
 
 int QUaNodeModel::columnCount(const QModelIndex &parent) const
 {
-    if (!m_root)
+    if (!m_root || !m_root->m_node)
     {
         return 0;
     }
-    // TODO: Implement me!
+    // TODO: Implement other columns
     // column 1 is always displayName
     return 1;
 }
@@ -193,7 +193,7 @@ int QUaNodeModel::columnCount(const QModelIndex &parent) const
 QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
 {
     // early exit for inhandled cases
-    if (!m_root || !index.isValid())
+    if (!m_root || !m_root->m_node || !index.isValid())
     {
         return QVariant();
     }
@@ -201,16 +201,22 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
     {
         return QVariant();
     }
-
-    // TODO: Implement me!
+    // get internal reference
     QUaNodeWrapper* node = static_cast<QUaNodeWrapper*>(index.internalPointer());
-    Q_CHECK_PTR(node->m_node);
+    // check internal wrapper data is valid, because node->m_node is always deleted before node
+    if (!node->m_node)
+    {
+        return QVariant();
+    }
+
+    // TODO: Implement other columns
+
     return node->m_node->displayName();
 }
 
 Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
 {
-    if (!index.isValid())
+    if (!m_root || !m_root->m_node || !index.isValid())
     {
         return Qt::NoItemFlags;
     }
@@ -220,12 +226,17 @@ Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
 void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
 {
     // subscribe to node removed
-    QObject::disconnect(node->m_node, &QObject::destroyed, this, 0);
+    // unbind tree must run inmediatly
     QObject::connect(node->m_node, &QObject::destroyed, this,
     [this, node]() {
         Q_CHECK_PTR(node);
         // stop all events for sub-tree so children's QObject::destroyed is not handled
         this->unbindNodeRecursivelly(node);
+    }, Qt::DirectConnection);
+    // remove rows better be queued in the event loop
+    QObject::connect(node->m_node, &QObject::destroyed, this,
+    [this, node]() {
+        Q_CHECK_PTR(node);
         if (node == m_root)
         {
             this->bindRootNode(nullptr);
@@ -236,6 +247,7 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
         // only use indexes created by model
         int row = node->m_index.row();
         QModelIndex index = node->m_parent->m_index;
+        Q_ASSERT(node->m_parent == m_root || this->checkIndex(index, CheckIndexOption::IndexIsValid));
         // notify views that row will be removed
         this->beginRemoveRows(index, row, row);
         // remove from parent, destructor deletes wrapper sub-tree recursivelly
@@ -243,15 +255,16 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
         delete node->m_parent->m_children.takeAt(row);
         // notify views that row removal has finished
         this->endRemoveRows();
-    });
+    }, Qt::QueuedConnection);
     // subscribe to new child node added
-    QObject::disconnect(node->m_node, &QUaNode::childAdded, this, 0);
+    // insert rows better be queued in the event loop
     QObject::connect(node->m_node, &QUaNode::childAdded, this,
     [this, node](QUaNode* childNode) {
         // get new node's row
         int row = node->m_children.count();
         // only use indexes created by model
         QModelIndex index = node->m_index;
+        Q_ASSERT(node == m_root || this->checkIndex(index, CheckIndexOption::IndexIsValid));
         // notify views that row will be added
         this->beginInsertRows(index, row, row);
         // create new wrapper
@@ -262,7 +275,13 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
         this->bindRecursivelly(wrapper);
         // notify views that row addition has finished
         this->endInsertRows();
-    });
+        // force index creation (indirectly)
+        // because sometimes they are not created until a view requires them
+        // and if a child is added and parent's index is not ready then crash
+        bool indexOk = this->checkIndex(this->index(row, 0, index), CheckIndexOption::IndexIsValid);
+        Q_ASSERT(indexOk);
+        Q_UNUSED(indexOk);
+    }, Qt::QueuedConnection);
     // TODO : data change with emit dataChanged
     // recurse children
     for (auto child : node->m_children)
