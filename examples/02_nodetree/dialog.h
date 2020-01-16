@@ -27,7 +27,9 @@ private:
     void setupServer();
     void setupTree();
 
-    void setupQUaBaseObjectExtMenu(QMenu& menu, QUaBaseObjectExt * extobj);
+    void setupQUaBaseObjectMenu      (QMenu& menu, QUaBaseObject       *obj    );
+    void setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable *datavar);
+    void setupQUaPropertyMenu        (QMenu& menu, QUaProperty         *prop   );
 
     QUaServer m_server;
     QUaNodeModel m_model;

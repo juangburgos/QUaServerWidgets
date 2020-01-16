@@ -11,6 +11,8 @@ public:
 
     Q_INVOKABLE void addObjectExtChild(QString strName);
 
+    Q_INVOKABLE void addMulitpleObjectExtChild(QString strBaseName, quint32 numChildren);
+
     Q_INVOKABLE void remove();
 
     // built in types

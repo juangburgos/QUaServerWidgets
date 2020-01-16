@@ -54,81 +54,166 @@ void Dialog::setupTree()
         auto node = m_model.nodeFromIndex(index);
         Q_CHECK_PTR(node);
         QString strType(node->metaObject()->className());
-        if (strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) == 0)
-        {
-            auto datavar = dynamic_cast<QUaBaseDataVariable*>(node);
-            Q_CHECK_PTR(datavar);
-        }
-        if (strType.compare("QUaBaseObject", Qt::CaseInsensitive) == 0)
-        {
-            auto obj = dynamic_cast<QUaBaseObject*>(node);
-            Q_CHECK_PTR(obj);
-        }
-        if (strType.compare("QUaFolderObject", Qt::CaseInsensitive) == 0)
-        {
-            auto folder = dynamic_cast<QUaFolderObject*>(node);
-            Q_CHECK_PTR(folder);
-        }
-        if (strType.compare("QUaBaseObjectExt", Qt::CaseInsensitive) == 0)
-        {
-            auto extobj = dynamic_cast<QUaBaseObjectExt*>(node);
-            Q_CHECK_PTR(extobj);
-            this->setupQUaBaseObjectExtMenu(contextMenu, extobj);
-        }
+        // objects, objectsext and folders are all objects
         if (strType.compare("QUaProperty", Qt::CaseInsensitive) == 0)
         {
             auto prop = dynamic_cast<QUaProperty*>(node);
             Q_CHECK_PTR(prop);
+            this->setupQUaPropertyMenu(contextMenu, prop);
+        }
+        else if (strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) == 0)
+        {
+            auto datavar = dynamic_cast<QUaBaseDataVariable*>(node);
+            Q_CHECK_PTR(datavar);
+            this->setupQUaBaseDataVariableMenu(contextMenu, datavar);
+        }
+        else
+        {
+            auto obj = dynamic_cast<QUaBaseObject*>(node);
+            Q_CHECK_PTR(obj);
+            this->setupQUaBaseObjectMenu(contextMenu, obj);
         }
         // exec
         contextMenu.exec(ui->treeView->viewport()->mapToGlobal(point));
     });
 }
 
-void Dialog::setupQUaBaseObjectExtMenu(QMenu& menu, QUaBaseObjectExt* extobj)
+void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
 {
     menu.addAction(tr("Add QUaBaseObjectExt"), this,
-	[this, extobj]() {
+	[this, obj]() {
         bool ok;
-        QString name = QInputDialog::getText(this, tr("Add QUaBaseObjectExt to %1").arg(extobj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        QString name = QInputDialog::getText(this, tr("Add QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        extobj->addObjectExtChild(name);
+        auto objext = obj->addChild<QUaBaseObjectExt>();
+        objext->setDisplayName(name);
+        objext->setBrowseName(name);
 	});
-    menu.addSeparator();
     menu.addAction(tr("Add Folder"), this,
-	[this, extobj]() {
+	[this, obj]() {
         bool ok;
-        QString name = QInputDialog::getText(this, tr("Add Folder to %1").arg(extobj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        QString name = QInputDialog::getText(this, tr("Add Folder to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        extobj->addFolderChild(name);
+        auto folder = obj->addFolderObject();
+        folder->setDisplayName(name);
+        folder->setBrowseName(name);
 	});
     menu.addAction(tr("Add BaseObject"), this,
-	[this, extobj]() {
+	[this, obj]() {
         bool ok;
-        QString name = QInputDialog::getText(this, tr("Add base BaseObject to %1").arg(extobj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        QString name = QInputDialog::getText(this, tr("Add base BaseObject to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        extobj->addBaseObjectChild(name);
+        auto nobj = obj->addBaseObject();
+        nobj->setDisplayName(name);
+        nobj->setBrowseName(name);
 	});
     menu.addAction(tr("Add DataVariable"), this,
-	[this, extobj]() {
+	[this, obj]() {
         bool ok;
-        QString name = QInputDialog::getText(this, tr("Add DataVariable to %1").arg(extobj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        QString name = QInputDialog::getText(this, tr("Add DataVariable to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        extobj->addBaseDataVariableChild(name);
+        auto basevar = obj->addBaseDataVariable();
+        basevar->setDisplayName(name);
+        basevar->setBrowseName(name);
 	});
     menu.addAction(tr("Add Property"), this,
-	[this, extobj]() {
+	[this, obj]() {
         bool ok;
-        QString name = QInputDialog::getText(this, tr("Add Property to %1").arg(extobj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        QString name = QInputDialog::getText(this, tr("Add Property to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        extobj->addPropertyChild(name);
+        auto prop = obj->addProperty();
+        prop->setDisplayName(name);
+        prop->setBrowseName(name);
 	});
     menu.addSeparator();
-    menu.addAction(tr("Delete \"%1\"").arg(extobj->displayName()), this,
-	[this, extobj]() {
-        auto res = QMessageBox::question(this, tr("Delete %1").arg(extobj->displayName()), tr("Are you sure you want to delete %1?").arg(extobj->displayName()));
+    QString strType(obj->metaObject()->className());
+    // objectsext can add multiple children at once
+    if (strType.compare("QUaBaseObjectExt", Qt::CaseInsensitive) == 0)
+    {
+        menu.addAction(tr("Add Multiple QUaBaseObjectExt"), this,
+	    [this, obj]() {
+            auto objext = dynamic_cast<QUaBaseObjectExt*>(obj);
+            Q_CHECK_PTR(objext);
+            bool ok;
+            QString name = QInputDialog::getText(this, tr("Add Multiple QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Children Base Name:"), QLineEdit::Normal, "", &ok);
+            if (!ok) { return; }
+            int i = QInputDialog::getInt(this, tr("Add Multiple QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Number of children:"), 1, 0, 2147483647, 10, &ok);
+            if (!ok) { return; }
+            objext->addMulitpleObjectExtChild(name, i);
+	    });
+        menu.addSeparator();
+    }
+    menu.addAction(tr("Delete \"%1\"").arg(obj->displayName()), this,
+	[this, obj]() {
+        auto res = QMessageBox::question(this, tr("Delete %1").arg(obj->displayName()), tr("Are you sure you want to delete %1?").arg(obj->displayName()));
         if (res != QMessageBox::Yes) { return; }
-        extobj->deleteLater();
+        obj->deleteLater();
+	});
+}
+
+void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* datavar)
+{
+    menu.addAction(tr("Add QUaBaseObjectExt"), this,
+	[this, datavar]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, tr("Add QUaBaseObjectExt to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        if (!ok) { return; }
+        auto objext = datavar->addChild<QUaBaseObjectExt>();
+        objext->setDisplayName(name);
+        objext->setBrowseName(name);
+	});
+    menu.addAction(tr("Add Folder"), this,
+	[this, datavar]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, tr("Add Folder to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        if (!ok) { return; }
+        auto folder = datavar->addFolderObject();
+        folder->setDisplayName(name);
+        folder->setBrowseName(name);
+	});
+    menu.addAction(tr("Add BaseObject"), this,
+	[this, datavar]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, tr("Add base BaseObject to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        if (!ok) { return; }
+        auto nobj = datavar->addBaseObject();
+        nobj->setDisplayName(name);
+        nobj->setBrowseName(name);
+	});
+    menu.addAction(tr("Add DataVariable"), this,
+	[this, datavar]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, tr("Add DataVariable to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        if (!ok) { return; }
+        auto basevar = datavar->addBaseDataVariable();
+        basevar->setDisplayName(name);
+        basevar->setBrowseName(name);
+	});
+    menu.addAction(tr("Add Property"), this,
+	[this, datavar]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, tr("Add Property to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
+        if (!ok) { return; }
+        auto prop = datavar->addProperty();
+        prop->setDisplayName(name);
+        prop->setBrowseName(name);
+	});
+    menu.addSeparator();
+    menu.addAction(tr("Delete \"%1\"").arg(datavar->displayName()), this,
+	[this, datavar]() {
+        auto res = QMessageBox::question(this, tr("Delete %1").arg(datavar->displayName()), tr("Are you sure you want to delete %1?").arg(datavar->displayName()));
+        if (res != QMessageBox::Yes) { return; }
+        datavar->deleteLater();
+	});
+}
+
+void Dialog::setupQUaPropertyMenu(QMenu& menu, QUaProperty* prop)
+{
+    menu.addAction(tr("Delete \"%1\"").arg(prop->displayName()), this,
+	[this, prop]() {
+        auto res = QMessageBox::question(this, tr("Delete %1").arg(prop->displayName()), tr("Are you sure you want to delete %1?").arg(prop->displayName()));
+        if (res != QMessageBox::Yes) { return; }
+        prop->deleteLater();
 	});
 }
 

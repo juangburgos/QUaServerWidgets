@@ -17,6 +17,14 @@ void QUaBaseObjectExt::addObjectExtChild(QString strName)
     child->setBrowseName(strName);
 }
 
+void QUaBaseObjectExt::addMulitpleObjectExtChild(QString strBaseName, quint32 numChildren)
+{
+    for (quint32 i = 0; i < numChildren; i++)
+    {
+        this->addObjectExtChild(QString("%1%2").arg(strBaseName).arg(i));
+    }
+}
+
 void QUaBaseObjectExt::remove()
 {
     this->deleteLater();
