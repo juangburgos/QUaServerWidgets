@@ -1,10 +1,10 @@
 # TODO
 
-* Still crashes when deleting root that has big deep tree.
+* Support node id display in optional column.
 
-* Support editable value (for variables) in optional second column.
+* Support editable value (for variables) in optional column.
 
-* Support default icons for basic types and cutomizable for user-defined types.
+* Support default icons for basic types and customizable for user-defined types.
 
-* Support default context menu for basic types and cutomizable for user-defined types.
+* Support default context menu for basic types and customizable for user-defined types.
 

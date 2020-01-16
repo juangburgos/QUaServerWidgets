@@ -12,12 +12,14 @@ class QUaNodeModel : public QAbstractItemModel
 public:
     explicit QUaNodeModel(QObject *parent = nullptr);
 
-    void bindRootNode(QUaNode * rootNode = nullptr);
+    QUaNode* rootNode() const;
+    void     setRootNode(QUaNode * rootNode = nullptr);
 
-    // Header:
+    QUaNode* nodeFromIndex(const QModelIndex& index);
+
+    // Qt required API:
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-    // Basic functionality:
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &index) const override;
 
@@ -32,7 +34,6 @@ private:
     class QUaNodeWrapper;
     QUaNodeWrapper* m_root;
 
-    // disconnect signals to and from the given node
     void bindRoot(QUaNodeWrapper* root);
     void bindRecursivelly(QUaNodeWrapper* node);
     void unbindNodeRecursivelly(QUaNodeWrapper* node);

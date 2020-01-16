@@ -2,8 +2,12 @@
 #define DIALOG_H
 
 #include <QDialog>
+#include <QMenu>
 
 #include <QUaServer>
+#include <QUaNodeModel>
+
+class QUaBaseObjectExt;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
@@ -20,6 +24,12 @@ public:
 private:
     Ui::Dialog *ui;
 
+    void setupServer();
+    void setupTree();
+
+    void setupQUaBaseObjectExtMenu(QMenu& menu, QUaBaseObjectExt * extobj);
+
     QUaServer m_server;
+    QUaNodeModel m_model;
 };
 #endif // DIALOG_H

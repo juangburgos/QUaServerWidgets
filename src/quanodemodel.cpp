@@ -45,9 +45,25 @@ QUaNodeModel::QUaNodeModel(QObject *parent)
     m_root = nullptr;
 }
 
-void QUaNodeModel::bindRootNode(QUaNode* rootNode/* = nullptr*/)
+QUaNode* QUaNodeModel::rootNode() const
+{
+    return m_root ? m_root->m_node : nullptr;
+}
+
+void QUaNodeModel::setRootNode(QUaNode* rootNode/* = nullptr*/)
 {
     this->bindRoot(rootNode ? new QUaNodeWrapper(rootNode) : nullptr);
+}
+
+QUaNode* QUaNodeModel::nodeFromIndex(const QModelIndex& index)
+{
+    if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+    {
+        return m_root->m_node;
+    }
+    auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
+    Q_CHECK_PTR(wrapper);
+    return wrapper->m_node;
 }
 
 void QUaNodeModel::bindRoot(QUaNodeWrapper* root)
@@ -145,14 +161,13 @@ QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
     }
     // get row of parent if grandparent is valid
     int row = 0;
-    int col = 0;
     QUaNodeWrapper* grandpaNode = static_cast<QUaNodeWrapper*>(parentNode->m_parent);
     if (grandpaNode)
     {
         row = grandpaNode->m_children.indexOf(parentNode);
     }
     // store index to support model manipulation
-    QModelIndex pIndex = createIndex(row, col, parentNode);
+    QModelIndex pIndex = createIndex(row, 0, parentNode);
     parentNode->m_index = pIndex;
     return pIndex;
 }
@@ -239,7 +254,7 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
         Q_CHECK_PTR(node);
         if (node == m_root)
         {
-            this->bindRootNode(nullptr);
+            this->setRootNode(nullptr);
             return;
         }
         // NOTE : node->m_parent must be valid because (node == m_root) already handled
