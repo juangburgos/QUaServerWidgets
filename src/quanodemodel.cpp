@@ -4,11 +4,13 @@
 class QUaNodeModel::QUaNodeWrapper
 {
 public:
-    explicit QUaNodeWrapper(QUaNode* node, QUaNodeWrapper* parent = nullptr) 
-        : m_node(node), m_parent(parent)
+    explicit QUaNodeWrapper(QUaNode* node, QUaNodeWrapper* parent = nullptr) : 
+        m_node(node), 
+        m_parent(parent)
     {
         Q_ASSERT_X(m_node, "QUaNodeWrapper", "Invalid node argument");
-        // subscribe to node destruction
+        // subscribe to node destruction, store connection to disconnect on destructor
+        m_connections <<
         QObject::connect(m_node, &QObject::destroyed,
         [this]() {
             this->m_node = nullptr;
@@ -22,8 +24,25 @@ public:
 
     QUaNodeWrapper::~QUaNodeWrapper()
     {
+        while (m_connections.count() > 0)
+        {
+            QObject::disconnect(m_connections.takeFirst());
+        }
         qDeleteAll(m_children);
     }
+
+    std::function<void()> getChangeCallbackForColumn(const int& column, QAbstractItemModel *model)
+    {
+        return [this, column, model]()
+        {
+            QModelIndex index = column == m_index.column() ? 
+                m_index :
+                m_index.siblingAtColumn(column);
+            Q_ASSERT(index.isValid());
+            emit model->dataChanged(index, index, QVector<int>() << Qt::DisplayRole);
+        };
+    }
+
     // internal data
     QUaNode* m_node;
     // NOTE : need index to support model manipulation 
@@ -37,12 +56,14 @@ public:
     // members for tree structure
     QUaNodeWrapper* m_parent;
     QList<QUaNodeWrapper*> m_children;
+    QList<QMetaObject::Connection> m_connections;
 };
 
 QUaNodeModel::QUaNodeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
     m_root = nullptr;
+    m_columnCount = 1;
 }
 
 QUaNode* QUaNodeModel::rootNode() const
@@ -92,6 +113,49 @@ void QUaNodeModel::bindRoot(QUaNodeWrapper* root)
     this->endResetModel();
 }
 
+void QUaNodeModel::setColumnDataSource(
+    const int& column, 
+    const QString& strHeader, 
+    std::function<QVariant(QUaNode*)> dataCallback, 
+    std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback
+)
+{
+    Q_ASSERT(column >= 0);
+    if (column < 0)
+    {
+        return;
+    }
+    m_mapDataSourceFuncs.insert(
+        column,
+        {
+            strHeader,
+            dataCallback,
+            changeCallback
+        }
+    );
+    // call bind function recusivelly for each existing instance
+    if (m_mapDataSourceFuncs[column].m_changeCallback)
+    {
+        this->bindChangeCallbackForColumnRecursivelly(column, m_root);
+    }
+    // keep always max num of columns
+    m_columnCount = (std::max)(m_columnCount, column + 1);
+}
+
+void QUaNodeModel::removeColumnDataSource(const int& column)
+{
+    Q_ASSERT(column >= 0);
+    if (column < 0 || column >= m_columnCount || !m_mapDataSourceFuncs.contains(column))
+    {
+        return;
+    }
+    m_mapDataSourceFuncs.remove(column);
+    while (!m_mapDataSourceFuncs.contains(m_columnCount - 1) && m_columnCount > 1)
+    {
+        m_columnCount--;
+    }
+}
+
 QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     // no header data if invalid root
@@ -99,14 +163,25 @@ QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int 
     {
         return QVariant();
     }
-    // TODO: Implement me!
-    if (orientation == Qt::Horizontal && 
-        role == Qt::DisplayRole &&
-        section <= 1)
+    // handle only horizontal header text
+    if (orientation != Qt::Horizontal || role != Qt::DisplayRole)
     {
+        return QVariant();
+    }
+
+    // default implementation if no ColumnDataSource has been defined
+    if (m_mapDataSourceFuncs.isEmpty())
+    {
+        Q_ASSERT(m_columnCount == 1);
         return tr("Display Name");
     }
-    return QVariant();
+    // empty if no ColumnDataSource defined for this column
+    if (!m_mapDataSourceFuncs.contains(section))
+    {
+        return QVariant();
+    }
+    // use user-defined ColumnDataSource
+    return m_mapDataSourceFuncs[section].m_strHeader;
 }
 
 QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) const
@@ -129,14 +204,18 @@ QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) 
     // browse n-th child wrapper node
     QUaNodeWrapper* childItem = parentNode->m_children.count() > row ?
         parentNode->m_children.at(row) : nullptr;
-    if (childItem)
+    if (!childItem)
     {
-        // store index to support model manipulation
-        QModelIndex index = this->createIndex(row, column, childItem);
-        childItem->m_index = index;
-        return index;
+        return QModelIndex();
+	}
+	// create index
+	QModelIndex index = this->createIndex(row, column, childItem);
+    // store index to support model manipulation
+    if (column == 0)
+    {
+	    childItem->m_index = index;
     }
-    return QModelIndex();
+	return index;
 }
 
 QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
@@ -167,7 +246,7 @@ QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
         row = grandpaNode->m_children.indexOf(parentNode);
     }
     // store index to support model manipulation
-    QModelIndex pIndex = createIndex(row, 0, parentNode);
+    QModelIndex pIndex = this->createIndex(row, 0, parentNode);
     parentNode->m_index = pIndex;
     return pIndex;
 }
@@ -200,9 +279,8 @@ int QUaNodeModel::columnCount(const QModelIndex &parent) const
     {
         return 0;
     }
-    // TODO: Implement other columns
-    // column 1 is always displayName
-    return 1;
+    // minimum 1 column
+    return m_columnCount;
 }
 
 QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
@@ -212,6 +290,7 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
     {
         return QVariant();
     }
+    // TODO : only handle text?
     if (role != Qt::DisplayRole)
     {
         return QVariant();
@@ -223,10 +302,19 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
     {
         return QVariant();
     }
-
-    // TODO: Implement other columns
-
-    return node->m_node->displayName();
+    // default implementation if no ColumnDataSource has been defined
+    if (m_mapDataSourceFuncs.isEmpty())
+    {
+        Q_ASSERT(m_columnCount == 1);
+        return node->m_node->displayName();
+    }
+    // empty if no ColumnDataSource defined for this column
+    if (!m_mapDataSourceFuncs.contains(index.column()))
+    {
+        return QVariant();
+    }
+    // use user-defined ColumnDataSource
+    return m_mapDataSourceFuncs[index.column()].m_dataCallback(node->m_node);
 }
 
 Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
@@ -297,7 +385,14 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
         Q_ASSERT(indexOk);
         Q_UNUSED(indexOk);
     }, Qt::QueuedConnection);
-    // TODO : data change with emit dataChanged
+    // bind callback for data change on each column
+    if (!m_mapDataSourceFuncs.isEmpty())
+    {
+        for (auto column : m_mapDataSourceFuncs.keys())
+        {
+            this->bindChangeCallbackForColumnRecursivelly(column, node);
+        }
+    }
     // recurse children
     for (auto child : node->m_children)
     {
@@ -308,6 +403,7 @@ void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
 void QUaNodeModel::unbindNodeRecursivelly(QUaNodeWrapper* node)
 {
     Q_CHECK_PTR(node);
+    // disconnect from internal node
     if (node->m_node)
 	{
 		this->disconnect(node->m_node);
@@ -317,5 +413,25 @@ void QUaNodeModel::unbindNodeRecursivelly(QUaNodeWrapper* node)
     for (auto child : node->m_children)
     {
         this->unbindNodeRecursivelly(child);
+    }
+}
+
+void QUaNodeModel::bindChangeCallbackForColumnRecursivelly(const int& column, QUaNodeWrapper* node)
+{
+    Q_CHECK_PTR(node);
+    if (node->m_node && m_mapDataSourceFuncs[column].m_changeCallback)
+    {
+        // pass in callback that user needs to call when a value is udpated
+        // store connection in wrapper so can be disconnected when wrapper deleted
+        node->m_connections <<
+        m_mapDataSourceFuncs[column].m_changeCallback(
+            node->m_node, 
+            node->getChangeCallbackForColumn(column, this)
+        );
+    }
+    // recurse children
+    for (auto child : node->m_children)
+    {
+        this->bindChangeCallbackForColumnRecursivelly(column, child);
     }
 }

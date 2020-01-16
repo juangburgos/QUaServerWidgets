@@ -33,6 +33,11 @@ void Dialog::setupServer()
     auto root = objs->addChild<QUaBaseObjectExt>("ns=1;s=root");
     root->setDisplayName("root");
     root->setBrowseName("root");
+    // add extra method to test clear tree
+    root->addMethod("clearTree",
+    [this]() {
+        m_model.setRootNode(nullptr);
+    });
     // start server
     m_server.start();
 }
@@ -42,10 +47,12 @@ void Dialog::setupTree()
     auto objs = m_server.objectsFolder();
     auto root = objs->browseChild("root");
     Q_CHECK_PTR(root);
+
     // setup model
     m_model.setRootNode(root);
-    // setup view
     ui->treeView->setModel(&m_model);
+
+    // setup tree context menu
     ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(ui->treeView, &QTreeView::customContextMenuRequested, this,
     [this](const QPoint& point) {
@@ -75,6 +82,44 @@ void Dialog::setupTree()
         }
         // exec
         contextMenu.exec(ui->treeView->viewport()->mapToGlobal(point));
+    });
+
+    // setup tree column data sources
+    m_model.setColumnDataSource(0, tr("Display Name"), 
+    [](QUaNode * node) {
+        return node->displayName();
+    }/* second callback is only necessary for data that changes */);
+    m_model.setColumnDataSource(1, tr("Node Id"), 
+    [](QUaNode * node) {
+        return node->nodeId();
+    });
+    m_model.setColumnDataSource(2, tr("Value"), 
+    [](QUaNode * node) {
+        QString strType(node->metaObject()->className());
+        // only print value for variables
+        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        {
+            return QVariant();
+        }
+        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        return var->value();
+    },
+    [](QUaNode * node, std::function<void()> changeCallback) {
+        QString strType(node->metaObject()->className());
+        // only print value for variables
+        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        {
+            return QMetaObject::Connection();
+        }
+        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        return QObject::connect(var, &QUaBaseVariable::valueChanged,
+        [changeCallback]() {
+            changeCallback();
+        });
     });
 }
 
@@ -115,6 +160,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         auto basevar = obj->addBaseDataVariable();
         basevar->setDisplayName(name);
         basevar->setBrowseName(name);
+        basevar->setWriteAccess(true);
 	});
     menu.addAction(tr("Add Property"), this,
 	[this, obj]() {
@@ -124,6 +170,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         auto prop = obj->addProperty();
         prop->setDisplayName(name);
         prop->setBrowseName(name);
+        prop->setWriteAccess(true);
 	});
     menu.addSeparator();
     QString strType(obj->metaObject()->className());
@@ -140,6 +187,17 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
             int i = QInputDialog::getInt(this, tr("Add Multiple QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Number of children:"), 1, 0, 2147483647, 10, &ok);
             if (!ok) { return; }
             objext->addMulitpleObjectExtChild(name, i);
+	    });
+        menu.addAction(tr("Add Multiple DataVariable"), this,
+	    [this, obj]() {
+            auto objext = dynamic_cast<QUaBaseObjectExt*>(obj);
+            Q_CHECK_PTR(objext);
+            bool ok;
+            QString name = QInputDialog::getText(this, tr("Add Multiple DataVariable to %1").arg(obj->displayName()), tr("Children Base Name:"), QLineEdit::Normal, "", &ok);
+            if (!ok) { return; }
+            int i = QInputDialog::getInt(this, tr("Add Multiple DataVariable to %1").arg(obj->displayName()), tr("Number of children:"), 1, 0, 2147483647, 10, &ok);
+            if (!ok) { return; }
+            objext->addMultipleBaseDataVariableChild(name, i);
 	    });
         menu.addSeparator();
     }
@@ -188,6 +246,7 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         auto basevar = datavar->addBaseDataVariable();
         basevar->setDisplayName(name);
         basevar->setBrowseName(name);
+        basevar->setWriteAccess(true);
 	});
     menu.addAction(tr("Add Property"), this,
 	[this, datavar]() {
@@ -197,6 +256,7 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         auto prop = datavar->addProperty();
         prop->setDisplayName(name);
         prop->setBrowseName(name);
+        prop->setWriteAccess(true);
 	});
     menu.addSeparator();
     menu.addAction(tr("Delete \"%1\"").arg(datavar->displayName()), this,

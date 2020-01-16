@@ -23,6 +23,8 @@ public:
 
     Q_INVOKABLE void addBaseDataVariableChild(QString strName);
 
+    Q_INVOKABLE void addMultipleBaseDataVariableChild(QString strBaseName, quint32 numChildren);
+
     Q_INVOKABLE void addPropertyChild(QString strName);
 
 };

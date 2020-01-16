@@ -17,6 +17,14 @@ public:
 
     QUaNode* nodeFromIndex(const QModelIndex& index);
 
+    void setColumnDataSource(
+        const int& column, 
+        const QString &strHeader, 
+        std::function<QVariant(QUaNode*)> dataCallback,
+        std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback = nullptr
+    );
+    void removeColumnDataSource(const int& column);
+
     // Qt required API:
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
@@ -33,10 +41,20 @@ public:
 private:
     class QUaNodeWrapper;
     QUaNodeWrapper* m_root;
+    int m_columnCount;
 
     void bindRoot(QUaNodeWrapper* root);
     void bindRecursivelly(QUaNodeWrapper* node);
     void unbindNodeRecursivelly(QUaNodeWrapper* node);
+    void bindChangeCallbackForColumnRecursivelly(const int& column, QUaNodeWrapper* node);
+
+    struct ColumnDataSource
+    {
+        QString m_strHeader;
+        std::function<QVariant(QUaNode*)> m_dataCallback;
+        std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> m_changeCallback;
+    };
+    QMap<int, ColumnDataSource> m_mapDataSourceFuncs;
 };
 
 #endif // QUANODEMODEL_H
