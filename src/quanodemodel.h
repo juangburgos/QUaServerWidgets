@@ -21,7 +21,8 @@ public:
         const int& column, 
         const QString &strHeader, 
         std::function<QVariant(QUaNode*)> dataCallback,
-        std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback = nullptr
+        std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback = nullptr,
+        std::function<bool(QUaNode*)> editableCallback = nullptr
     );
     void removeColumnDataSource(const int& column);
 
@@ -53,6 +54,7 @@ private:
         QString m_strHeader;
         std::function<QVariant(QUaNode*)> m_dataCallback;
         std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> m_changeCallback;
+        std::function<bool(QUaNode*)> m_editableCallback;
     };
     QMap<int, ColumnDataSource> m_mapDataSourceFuncs;
 };

@@ -120,6 +120,16 @@ void Dialog::setupTree()
         [changeCallback]() {
             changeCallback();
         });
+    },
+    [](QUaNode * node) {
+        QString strType(node->metaObject()->className());
+        // only edit value for variables
+        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        {
+            return false;
+        }
+        return true;
     });
 }
 

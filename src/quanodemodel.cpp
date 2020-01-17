@@ -117,7 +117,8 @@ void QUaNodeModel::setColumnDataSource(
     const int& column, 
     const QString& strHeader, 
     std::function<QVariant(QUaNode*)> dataCallback, 
-    std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback
+    std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)> changeCallback/* = nullptr*/,
+    std::function<bool(QUaNode*)> editableCallback/* = nullptr*/
 )
 {
     Q_ASSERT(column >= 0);
@@ -130,7 +131,8 @@ void QUaNodeModel::setColumnDataSource(
         {
             strHeader,
             dataCallback,
-            changeCallback
+            changeCallback,
+            editableCallback
         }
     );
     // call bind function recusivelly for each existing instance
@@ -168,7 +170,6 @@ QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int 
     {
         return QVariant();
     }
-
     // default implementation if no ColumnDataSource has been defined
     if (m_mapDataSourceFuncs.isEmpty())
     {
@@ -275,6 +276,7 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
 
 int QUaNodeModel::columnCount(const QModelIndex &parent) const
 {
+    Q_UNUSED(parent);
     if (!m_root || !m_root->m_node)
     {
         return 0;
@@ -290,7 +292,7 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
     {
         return QVariant();
     }
-    // TODO : only handle text?
+    // only display data (text)
     if (role != Qt::DisplayRole)
     {
         return QVariant();
@@ -323,7 +325,26 @@ Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
     {
         return Qt::NoItemFlags;
     }
-    return QAbstractItemModel::flags(index);
+    Qt::ItemFlags flags = QAbstractItemModel::flags(index);
+    // test column defined and editable callback defined
+    if (!m_mapDataSourceFuncs.contains(index.column()) || 
+        !m_mapDataSourceFuncs[index.column()].m_editableCallback)
+    {
+        return flags;
+    }
+    // test node valid
+    QUaNodeWrapper* node = static_cast<QUaNodeWrapper*>(index.internalPointer());
+    if (!node->m_node)
+    {
+        return flags;
+    }
+    // test callback returns true
+    if (!m_mapDataSourceFuncs[index.column()].m_editableCallback(node->m_node))
+    {
+        return flags;
+    }
+    // finally, after all this, item is editable
+    return flags |= Qt::ItemIsEditable;
 }
 
 void QUaNodeModel::bindRecursivelly(QUaNodeWrapper* node)
