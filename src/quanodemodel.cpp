@@ -76,7 +76,7 @@ void QUaNodeModel::setRootNode(QUaNode* rootNode/* = nullptr*/)
     this->bindRoot(rootNode ? new QUaNodeWrapper(rootNode) : nullptr);
 }
 
-QUaNode* QUaNodeModel::nodeFromIndex(const QModelIndex& index)
+QUaNode* QUaNodeModel::nodeFromIndex(const QModelIndex& index) const
 {
     if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
     {
@@ -311,7 +311,8 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
         return node->m_node->displayName();
     }
     // empty if no ColumnDataSource defined for this column
-    if (!m_mapDataSourceFuncs.contains(index.column()))
+    if (!m_mapDataSourceFuncs.contains(index.column()) || 
+        !m_mapDataSourceFuncs[index.column()].m_dataCallback)
     {
         return QVariant();
     }

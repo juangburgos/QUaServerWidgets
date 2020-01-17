@@ -15,7 +15,7 @@ public:
     QUaNode* rootNode() const;
     void     setRootNode(QUaNode * rootNode = nullptr);
 
-    QUaNode* nodeFromIndex(const QModelIndex& index);
+    QUaNode* nodeFromIndex(const QModelIndex& index) const;
 
     void setColumnDataSource(
         const int& column, 

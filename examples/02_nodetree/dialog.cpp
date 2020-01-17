@@ -1,11 +1,14 @@
 #include "dialog.h"
 #include "ui_dialog.h"
 
+#include <limits>
+
 #include "quabaseobjectext.h"
 
 #include <QMetaObject>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QSpinBox>
 
 Dialog::Dialog(QWidget *parent)
     : QDialog(parent)
@@ -48,7 +51,7 @@ void Dialog::setupTree()
     auto root = objs->browseChild("root");
     Q_CHECK_PTR(root);
 
-    // setup model
+    // setup model into tree
     m_model.setRootNode(root);
     ui->treeView->setModel(&m_model);
 
@@ -84,7 +87,7 @@ void Dialog::setupTree()
         contextMenu.exec(ui->treeView->viewport()->mapToGlobal(point));
     });
 
-    // setup tree column data sources
+    // setup model column data sources
     m_model.setColumnDataSource(0, tr("Display Name"), 
     [](QUaNode * node) {
         return node->displayName();
@@ -130,6 +133,33 @@ void Dialog::setupTree()
             return false;
         }
         return true;
+    });
+
+    // setup tree editor
+    ui->treeView->setColumnEditor(2,
+    [](QWidget* parent, QUaNode* node) {
+        Q_UNUSED(node);
+        // create editor
+        auto editor = new QSpinBox(parent);
+        editor->setMinimum((std::numeric_limits<int>::min)());
+        editor->setMaximum((std::numeric_limits<int>::max)());
+        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        // set current value to editor
+        Q_CHECK_PTR(var);
+        editor->setValue(var->value().toInt());
+        return editor;
+    }, 
+    [](QWidget* editor, QUaNode* node) {
+        // do nothing if value changes while editing, 
+        // else user input will be overwritten
+        Q_UNUSED(editor);
+        Q_UNUSED(node);
+    },
+    [](QWidget* editor, QUaNode* node) {
+        auto sbox = static_cast<QSpinBox*>(editor);
+        auto var  = dynamic_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        var->setValue(sbox->value());
     });
 }
 
