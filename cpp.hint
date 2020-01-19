@@ -5,7 +5,9 @@
 #define Q_DECLARE_METATYPE()
 #define UA_EXPORT
 #define Q_ENUM()
-#define Q_PROPERTY()
+#define Q_PROPERTY(text) Q_PROPERTY(text)#define Q_PROPERTY(__VA_ARGS__) QT_ANNOTATE_CLASS(qt_property, __VA_ARGS__)
+#define Q_PROPERTY(text) QT_ANNOTATE_CLASS(qt_property, text)
+#define Q_PROPERTY(text) Q_PROPERTY(text)
 
 #define _UA_BEGIN_DECLS
 #define LIST_ENTRY

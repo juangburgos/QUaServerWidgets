@@ -16,6 +16,20 @@ Dialog::Dialog(QWidget *parent)
     , m_model(this)
 {
     ui->setupUi(this);
+    QObject::connect(&m_server, &QUaServer::logMessage, this,
+    [](const QUaLog &log) {
+        qDebug() << "[" << log.level << "]["<< log.category << "] :" << log.message;
+    });
+    QObject::connect(&m_server, &QUaServer::clientConnected, this,
+    [](const QUaSession& sessionData) {
+        qDebug() << "[INFO] Client connected" << QString("%1:%2").arg(sessionData.address()).arg(sessionData.port());
+        qDebug() << "[INFO] Client connected" << sessionData.applicationName();
+    });
+    QObject::connect(&m_server, &QUaServer::clientDisconnected, this,
+    [](const QUaSession& sessionData) {
+        qDebug() << "[INFO] Client disconnected" << QString("%1:%2").arg(sessionData.address()).arg(sessionData.port());
+        qDebug() << "[INFO] Client disconnected" << sessionData.applicationName();
+    });
     // setup server
     this->setupServer();
     // setup node tree
