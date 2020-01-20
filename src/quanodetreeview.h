@@ -3,6 +3,7 @@
 
 #include <QTreeView>
 #include <QStyledItemDelegate>
+#include <QElapsedTimer>
 
 class QUaNode;
 class QUaNodeModel;
@@ -26,6 +27,11 @@ public:
     void removeColumnEditor(const int& column);
 
     // TODO : filtering using QSortFilterProxyModel
+
+    // Qt API:
+
+    // overwrite to ignore some calls to improve performance
+    void dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight, const QVector<int>& roles = QVector<int>()) override;
 
 signals:
 

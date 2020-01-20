@@ -59,6 +59,8 @@ QUaNodeTreeView::QUaNodeTreeView(QWidget *parent) : QTreeView(parent)
 	m_model = nullptr;
 	this->setItemDelegate(new QUaNodeDelegate(this));
 	this->setAlternatingRowColors(true);
+	// set uniform rows for performance by default
+	this->setUniformRowHeights(true);
 }
 
 void QUaNodeTreeView::setModel(QAbstractItemModel* model)
@@ -97,5 +99,20 @@ void QUaNodeTreeView::setColumnEditor(
 void QUaNodeTreeView::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
+}
+
+void QUaNodeTreeView::dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight, const QVector<int>& roles)
+{
+	// NOTE : QUaNodeModel always emits dataChanged with (topLeft == bottomRight)
+	Q_ASSERT(topLeft == bottomRight);
+	// getting visual rect is expensive but less than QTreeView::dataChanged
+	QRect rect = this->visualRect(topLeft);
+	// ignore data update if item out of view
+	if (rect.y() < 0 || rect.y() > this->height())
+	{
+		return;
+	}
+	// data update is expensive
+	QTreeView::dataChanged(topLeft, bottomRight, roles);
 }
 

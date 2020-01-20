@@ -2,6 +2,7 @@
 #define QUABASEOBJECTEXT_H
 
 #include <QUaBaseObject>
+#include <QTimer>
 
 class QUaBaseObjectExt : public QUaBaseObject
 {
@@ -27,6 +28,8 @@ public:
 
     Q_INVOKABLE void addPropertyChild(QString strName);
 
+private:
+    static QTimer m_timer;
 };
 
 #endif // QUABASEOBJECTEXT_H

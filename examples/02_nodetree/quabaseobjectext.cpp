@@ -4,13 +4,19 @@
 #include <QUaBaseDataVariable>
 #include <QUaProperty>
 
-#include <QTimer>
 #include <QRandomGenerator>
+#include <QElapsedTimer>
+
+QTimer QUaBaseObjectExt::m_timer;
 
 QUaBaseObjectExt::QUaBaseObjectExt(QUaServer *server)
     : QUaBaseObject(server)
 {
-
+    if (m_timer.isActive())
+    {
+        return;
+    }
+    m_timer.start(50);
 }
 
 void QUaBaseObjectExt::addObjectExtChild(QString strName)
@@ -53,15 +59,25 @@ void QUaBaseObjectExt::addBaseDataVariableChild(QString strName)
     var->setDisplayName(strName);
     var->setBrowseName(strName);
     var->setWriteAccess(true);
-    // TODO : remove when editing is supported
+    // simulate value changes to measure model-view performance
     var->setDataType(QMetaType::Type::Int);
-    QTimer * timer = new QTimer(var);
-    QObject::connect(timer, &QTimer::timeout, var, 
-    [var]() {
-        var->setValue(QRandomGenerator::global()->generate());
+    QElapsedTimer* timer = new QElapsedTimer();
+    quint32 timeout = QRandomGenerator::global()->bounded(250, 2000);
+    QObject::connect(&m_timer, &QTimer::timeout, var,
+    [var, timer, timeout]() {
+        static quint32 counter = 0;
+        if (timer->elapsed() < timeout)
+        {
+            return;
+        }
+        var->setValue(counter++);
         emit var->valueChanged(QVariant());
+        timer->restart();
     });
-    timer->start(QRandomGenerator::global()->bounded(250, 2000));
+    QObject::connect(var, &QObject::destroyed,
+    [timer]() {
+        delete timer;
+    });
 }
 
 void QUaBaseObjectExt::addMultipleBaseDataVariableChild(QString strBaseName, quint32 numChildren)
