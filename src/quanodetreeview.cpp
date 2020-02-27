@@ -1,5 +1,5 @@
 #include "quanodetreeview.h"
-
+#include <QSortFilterProxyModel>
 #include <QUaNodeModel>
 
 QUaNodeDelegate::QUaNodeDelegate(QObject* parent)
@@ -66,13 +66,21 @@ QUaNodeTreeView::QUaNodeTreeView(QWidget *parent) : QTreeView(parent)
 void QUaNodeTreeView::setModel(QAbstractItemModel* model)
 {
 	auto nodeModel = dynamic_cast<QUaNodeModel*>(model);
+	if (!nodeModel)
+	{
+		auto proxyModel = dynamic_cast<QSortFilterProxyModel*>(model);
+		if (proxyModel)
+		{
+			nodeModel = dynamic_cast<QUaNodeModel*>(proxyModel->sourceModel());
+		}
+	}
 	Q_ASSERT_X(nodeModel, "setModel", "QUaNodeTreeView only supports QUaNodeModel models");
 	if (!nodeModel)
 	{
 		return;
 	}
 	m_model = nodeModel;
-	QTreeView::setModel(nodeModel);
+	QTreeView::setModel(model);
 }
 
 void QUaNodeTreeView::setColumnEditor(

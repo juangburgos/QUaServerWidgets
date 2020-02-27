@@ -9,6 +9,23 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSpinBox>
+#include <QSortFilterProxyModel>
+
+#include "quaxmlserializer.h"
+#include "quasqliteserializer.h"
+
+QMetaEnum logMetaEnum = QMetaEnum::fromType<QUaLogLevel>();
+QString logToString(const QQueue<QUaLog>& logOut)
+{
+    QString strLog;
+    for (auto &log : logOut)
+    {
+        strLog += QString("[%1] : %2\n")
+            .arg(logMetaEnum.valueToKey(static_cast<int>(log.level)))
+            .arg(log.message.constData());
+    }
+    return strLog;
+}
 
 Dialog::Dialog(QWidget *parent)
     : QDialog(parent)
@@ -21,14 +38,14 @@ Dialog::Dialog(QWidget *parent)
         qDebug() << "[" << log.level << "]["<< log.category << "] :" << log.message;
     });
     QObject::connect(&m_server, &QUaServer::clientConnected, this,
-    [](const QUaSession& sessionData) {
-        qDebug() << "[INFO] Client connected" << QString("%1:%2").arg(sessionData.address()).arg(sessionData.port());
-        qDebug() << "[INFO] Client connected" << sessionData.applicationName();
-    });
+    [](const QUaSession* session) {
+        qDebug() << "[INFO] Client connected" << QString("%1:%2").arg(session->address()).arg(session->port());
+        qDebug() << "[INFO] Client connected" << session->applicationName();
+        });
     QObject::connect(&m_server, &QUaServer::clientDisconnected, this,
-    [](const QUaSession& sessionData) {
-        qDebug() << "[INFO] Client disconnected" << QString("%1:%2").arg(sessionData.address()).arg(sessionData.port());
-        qDebug() << "[INFO] Client disconnected" << sessionData.applicationName();
+        [](const QUaSession* session) {
+            qDebug() << "[INFO] Client disconnected" << QString("%1:%2").arg(session->address()).arg(session->port());
+            qDebug() << "[INFO] Client disconnected" << session->applicationName();
     });
     // setup server
     this->setupServer();
@@ -55,6 +72,60 @@ void Dialog::setupServer()
     [this]() {
         m_model.setRootNode(nullptr);
     });
+    // test serialize
+    objs->addMethod("SerializeXML", [objs](QString strFileName) {
+	    QUaXmlSerializer serializer;
+	    QQueue<QUaLog> logOut;
+	    if (!serializer.setXmlFileName(strFileName, logOut))
+	    {
+		    return logToString(logOut);
+	    }
+	    if (!objs->serialize(serializer, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    return QString("Success : Serialized to %1 file.").arg(strFileName);
+    });
+    objs->addMethod("SerializeSQL", [objs](QString strFileName) {
+	    QUaSqliteSerializer serializer;
+	    QQueue<QUaLog> logOut;
+	    if (!serializer.setSqliteDbName(strFileName, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    if (!objs->serialize(serializer, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    return QString("Success : Serialized to %1 file.").arg(strFileName);
+    });
+    // test deserialize
+    objs->addMethod("DeserializeXML", [objs](QString strFileName) {
+        QUaXmlSerializer serializer;
+	    QQueue<QUaLog> logOut;
+	    if (!serializer.setXmlFileName(strFileName, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    if (!objs->deserialize(serializer, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    return QString("Success : Deserialized from %1 file.").arg(strFileName);
+    });
+    objs->addMethod("DeserializeSQL", [objs](QString strFileName) {
+        QUaSqliteSerializer serializer;
+	    QQueue<QUaLog> logOut;
+	    if (!serializer.setSqliteDbName(strFileName, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    if (!objs->deserialize(serializer, logOut))
+	    {
+            return logToString(logOut);
+	    }
+	    return QString("Success : Deserialized from %1 file.").arg(strFileName);
+    });
     // start server
     m_server.start();
 }
@@ -67,7 +138,6 @@ void Dialog::setupTree()
 
     // setup model into tree
     m_model.setRootNode(root);
-    ui->treeView->setModel(&m_model);
 
     // setup tree context menu
     ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -81,19 +151,19 @@ void Dialog::setupTree()
         // objects, objectsext and folders are all objects
         if (strType.compare("QUaProperty", Qt::CaseInsensitive) == 0)
         {
-            auto prop = dynamic_cast<QUaProperty*>(node);
+            auto prop = qobject_cast<QUaProperty*>(node);
             Q_CHECK_PTR(prop);
             this->setupQUaPropertyMenu(contextMenu, prop);
         }
         else if (strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) == 0)
         {
-            auto datavar = dynamic_cast<QUaBaseDataVariable*>(node);
+            auto datavar = qobject_cast<QUaBaseDataVariable*>(node);
             Q_CHECK_PTR(datavar);
             this->setupQUaBaseDataVariableMenu(contextMenu, datavar);
         }
         else
         {
-            auto obj = dynamic_cast<QUaBaseObject*>(node);
+            auto obj = qobject_cast<QUaBaseObject*>(node);
             Q_CHECK_PTR(obj);
             this->setupQUaBaseObjectMenu(contextMenu, obj);
         }
@@ -119,7 +189,7 @@ void Dialog::setupTree()
         {
             return QVariant();
         }
-        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        auto var = qobject_cast<QUaBaseVariable*>(node);
         Q_CHECK_PTR(var);
         return var->value();
     },
@@ -131,7 +201,7 @@ void Dialog::setupTree()
         {
             return QMetaObject::Connection();
         }
-        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        auto var = qobject_cast<QUaBaseVariable*>(node);
         Q_CHECK_PTR(var);
         return QObject::connect(var, &QUaBaseVariable::valueChanged,
         [changeCallback]() {
@@ -157,7 +227,7 @@ void Dialog::setupTree()
         auto editor = new QSpinBox(parent);
         editor->setMinimum((std::numeric_limits<int>::min)());
         editor->setMaximum((std::numeric_limits<int>::max)());
-        auto var = dynamic_cast<QUaBaseVariable*>(node);
+        auto var = qobject_cast<QUaBaseVariable*>(node);
         // set current value to editor
         Q_CHECK_PTR(var);
         editor->setValue(var->value().toInt());
@@ -171,10 +241,16 @@ void Dialog::setupTree()
     },
     [](QWidget* editor, QUaNode* node) {
         auto sbox = static_cast<QSpinBox*>(editor);
-        auto var  = dynamic_cast<QUaBaseVariable*>(node);
+        auto var  = qobject_cast<QUaBaseVariable*>(node);
         Q_CHECK_PTR(var);
         var->setValue(sbox->value());
     });
+    // allow sorting
+    auto proxy = new QSortFilterProxyModel(this);
+    proxy->setSourceModel(&m_model);
+    ui->treeView->setModel(proxy);
+    ui->treeView->setSortingEnabled(true);
+    ui->treeView->sortByColumn(0, Qt::SortOrder::AscendingOrder);
 }
 
 void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
@@ -233,7 +309,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
     {
         menu.addAction(tr("Add Multiple QUaBaseObjectExt"), this,
 	    [this, obj]() {
-            auto objext = dynamic_cast<QUaBaseObjectExt*>(obj);
+            auto objext = qobject_cast<QUaBaseObjectExt*>(obj);
             Q_CHECK_PTR(objext);
             bool ok;
             QString name = QInputDialog::getText(this, tr("Add Multiple QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Children Base Name:"), QLineEdit::Normal, "", &ok);
@@ -244,7 +320,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
 	    });
         menu.addAction(tr("Add Multiple DataVariable"), this,
 	    [this, obj]() {
-            auto objext = dynamic_cast<QUaBaseObjectExt*>(obj);
+            auto objext = qobject_cast<QUaBaseObjectExt*>(obj);
             Q_CHECK_PTR(objext);
             bool ok;
             QString name = QInputDialog::getText(this, tr("Add Multiple DataVariable to %1").arg(obj->displayName()), tr("Children Base Name:"), QLineEdit::Normal, "", &ok);

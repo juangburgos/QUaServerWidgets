@@ -3,7 +3,6 @@
 
 #include <QTreeView>
 #include <QStyledItemDelegate>
-#include <QElapsedTimer>
 
 class QUaNode;
 class QUaNodeModel;
