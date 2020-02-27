@@ -12,9 +12,6 @@ class QUaNodeModel : public QAbstractItemModel
 public:
     explicit QUaNodeModel(QObject *parent = nullptr);
 
-    QUaNode* rootNode() const;
-    void     setRootNode(QUaNode * rootNode = nullptr);
-
     QUaNode* nodeFromIndex(const QModelIndex& index) const;
 
     void setColumnDataSource(
@@ -39,15 +36,47 @@ public:
 
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-private:
-    class QUaNodeWrapper;
+protected:
+    class QUaNodeWrapper
+    {
+    public:
+        explicit QUaNodeWrapper(QUaNode* node, QUaNodeModel::QUaNodeWrapper* parent = nullptr);
+        ~QUaNodeWrapper();
+
+        QUaNode* node() const;
+
+        QModelIndex index() const;
+        void setIndex(const QModelIndex &index);
+
+        QUaNodeModel::QUaNodeWrapper* parent() const;
+
+        // NOTE : return by reference
+        QList<QUaNodeModel::QUaNodeWrapper*> & children();
+        QList<QMetaObject::Connection> & connections();
+
+        std::function<void()> getChangeCallbackForColumn(const int& column, QAbstractItemModel* model);
+
+    private:
+        // internal data
+        QUaNode* m_node;
+        // NOTE : need index to support model manipulation 
+        //        cannot use createIndex outside Qt's API
+        //        (doesnt work even inside a QAbstractItemModel member)
+        //        and for beginRemoveRows and beginInsertRows
+        //        we can only use the indexes provided by the model
+        //        else random crashes occur when manipulating model
+        //        btw do not use QPersistentModelIndex, they get corrupted
+        QModelIndex m_index;
+        // members for tree structure
+        QUaNodeWrapper* m_parent;
+        QList<QUaNodeWrapper*> m_children;
+        QList<QMetaObject::Connection> m_connections;
+    };
+
     QUaNodeWrapper* m_root;
     int m_columnCount;
 
-    void bindRoot(QUaNodeWrapper* root);
-    void bindRecursivelly(QUaNodeWrapper* node);
-    void unbindNodeRecursivelly(QUaNodeWrapper* node);
-    void bindChangeCallbackForColumnRecursivelly(const int& column, QUaNodeWrapper* node);
+    virtual void bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* node) = 0;
 
     struct ColumnDataSource
     {

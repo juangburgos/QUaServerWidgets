@@ -9,7 +9,6 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSpinBox>
-#include <QSortFilterProxyModel>
 
 #include "quaxmlserializer.h"
 #include "quasqliteserializer.h"
@@ -64,11 +63,8 @@ void Dialog::setupServer()
     m_server.registerType<QUaBaseObjectExt>("ns=1;s=QUaBaseObjectExt");
     // add root instance of extensible object
     auto objs = m_server.objectsFolder();
-    auto root = objs->addChild<QUaBaseObjectExt>("ns=1;s=root");
-    root->setDisplayName("root");
-    root->setBrowseName("root");
     // add extra method to test clear tree
-    root->addMethod("clearTree",
+    objs->addMethod("clearTree",
     [this]() {
         m_model.setRootNode(nullptr);
     });
@@ -133,17 +129,14 @@ void Dialog::setupServer()
 void Dialog::setupTree()
 {
     auto objs = m_server.objectsFolder();
-    auto root = objs->browseChild("root");
-    Q_CHECK_PTR(root);
-
     // setup model into tree
-    m_model.setRootNode(root);
+    m_model.setRootNode(objs);
 
     // setup tree context menu
     ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(ui->treeView, &QTreeView::customContextMenuRequested, this,
     [this](const QPoint& point) {
-        QModelIndex index = ui->treeView->indexAt(point);
+        QModelIndex index = m_proxy.mapToSource(ui->treeView->indexAt(point));
         QMenu contextMenu(ui->treeView);
         auto node = m_model.nodeFromIndex(index);
         Q_CHECK_PTR(node);
@@ -246,11 +239,9 @@ void Dialog::setupTree()
         var->setValue(sbox->value());
     });
     // allow sorting
-    auto proxy = new QSortFilterProxyModel(this);
-    proxy->setSourceModel(&m_model);
-    ui->treeView->setModel(proxy);
+    m_proxy.setSourceModel(&m_model);
+    ui->treeView->setModel(&m_proxy);
     ui->treeView->setSortingEnabled(true);
-    ui->treeView->sortByColumn(0, Qt::SortOrder::AscendingOrder);
 }
 
 void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
@@ -330,6 +321,11 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
             objext->addMultipleBaseDataVariableChild(name, i);
 	    });
         menu.addSeparator();
+    }
+    // cannot delete objects folder
+    if (obj == m_server.objectsFolder())
+    {
+        return;
     }
     menu.addAction(tr("Delete \"%1\"").arg(obj->displayName()), this,
 	[this, obj]() {

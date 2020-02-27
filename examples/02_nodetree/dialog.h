@@ -5,7 +5,8 @@
 #include <QMenu>
 
 #include <QUaServer>
-#include <QUaNodeModel>
+#include <QUaTreeModel>
+#include <QSortFilterProxyModel>
 
 class QUaBaseObjectExt;
 
@@ -32,6 +33,7 @@ private:
     void setupQUaPropertyMenu        (QMenu& menu, QUaProperty         *prop   );
 
     QUaServer m_server;
-    QUaNodeModel m_model;
+    QUaTreeModel m_model;
+    QSortFilterProxyModel m_proxy;
 };
 #endif // DIALOG_H

@@ -25,8 +25,6 @@ public:
     );
     void removeColumnEditor(const int& column);
 
-    // TODO : filtering using QSortFilterProxyModel
-
     // Qt API:
 
     // overwrite to ignore some calls to improve performance

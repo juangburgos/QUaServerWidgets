@@ -6,12 +6,18 @@ FORMS += \
 
 HEADERS += \
     $$PWD/quanodemodel.h \
+    $$PWD/quanodetableview.h \
     $$PWD/quanodetreeview.h \
-    $$PWD/quaserverwidget.h
+    $$PWD/quaserverwidget.h \
+    $$PWD/quatreemodel.h \
+    $$PWD/quatypemodel.h
 
 
 SOURCES += \
     $$PWD/quanodemodel.cpp \
+    $$PWD/quanodetableview.cpp \
     $$PWD/quanodetreeview.cpp \
-    $$PWD/quaserverwidget.cpp
+    $$PWD/quaserverwidget.cpp \
+    $$PWD/quatreemodel.cpp \
+    $$PWD/quatypemodel.cpp
 
