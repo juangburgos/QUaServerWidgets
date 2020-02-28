@@ -9,6 +9,7 @@ HEADERS += \
     $$PWD/quanodetableview.h \
     $$PWD/quanodetreeview.h \
     $$PWD/quaserverwidget.h \
+    $$PWD/quatablemodel.h \
     $$PWD/quatreemodel.h \
     $$PWD/quatypemodel.h
 
@@ -18,6 +19,7 @@ SOURCES += \
     $$PWD/quanodetableview.cpp \
     $$PWD/quanodetreeview.cpp \
     $$PWD/quaserverwidget.cpp \
+    $$PWD/quatablemodel.cpp \
     $$PWD/quatreemodel.cpp \
     $$PWD/quatypemodel.cpp
 

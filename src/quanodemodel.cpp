@@ -62,6 +62,15 @@ QUaNodeModel::QUaNodeWrapper* QUaNodeModel::QUaNodeWrapper::parent() const
     return m_parent;
 }
 
+QUaNodeModel::QUaNodeWrapper* QUaNodeModel::QUaNodeWrapper::childByNode(QUaNode* node) const
+{
+    auto res = std::find_if(m_children.begin(), m_children.end(), 
+    [node](QUaNodeModel::QUaNodeWrapper* wrapper) {
+        return wrapper->m_node == node;
+    });
+    return res == m_children.end() ? nullptr : *res;
+}
+
 QList<QUaNodeModel::QUaNodeWrapper*>& QUaNodeModel::QUaNodeWrapper::children()
 {
     return m_children;

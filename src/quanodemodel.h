@@ -53,6 +53,7 @@ protected:
         void setIndex(const QModelIndex &index);
 
         QUaNodeModel::QUaNodeWrapper* parent() const;
+        QUaNodeModel::QUaNodeWrapper* childByNode(QUaNode* node) const;
 
         // NOTE : return by reference
         QList<QUaNodeModel::QUaNodeWrapper*> & children();

@@ -1,9 +1,9 @@
 #include "quatypemodel.h"
 
 QUaTypeModel::QUaTypeModel(QObject *parent)
-    : QUaNodeModel(parent)
+    : QUaTableModel(parent)
 {
-    m_root = new QUaNodeWrapper(nullptr);
+    
 }
 
 QUaTypeModel::~QUaTypeModel()
@@ -22,13 +22,5 @@ void QUaTypeModel::unbindAll()
     {
         QObject::disconnect(m_connections.take(m_connections.begin().key()));
     }
-    this->beginResetModel();
-    while(m_root->children().count() > 0)
-    {
-        auto wrapper = m_root->children().takeFirst();
-        this->disconnect(wrapper->node());
-        wrapper->node()->disconnect(this);
-        delete wrapper;
-    }
-    this->endResetModel();
+    this->clear();
 }

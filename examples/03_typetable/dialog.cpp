@@ -69,7 +69,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newFolder = obj->addFolderObject();
+        auto newFolder = obj->addFolderObject(QString("ns=1;s=%1").arg(strName));
         newFolder->setBrowseName(strName);
         newFolder->setDisplayName(strName);
         this->addMethods(newFolder);
@@ -80,7 +80,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newObj = obj->addBaseObject();
+        auto newObj = obj->addBaseObject(QString("ns=1;s=%1").arg(strName));
         newObj->setBrowseName(strName);
         newObj->setDisplayName(strName);
         this->addMethods(newObj);
@@ -91,16 +91,28 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newVar = obj->addBaseDataVariable();
+        auto newVar = obj->addBaseDataVariable(QString("ns=1;s=%1").arg(strName));
         newVar->setBrowseName(strName);
         newVar->setDisplayName(strName);
         return QString("Success : %1 created.").arg(strName);
     });
     if (isObjsFolder)
     {
-        obj->addMethod("unbindTable", [this]() {
+        obj->addMethod("unbindAll", [this]() {
             m_model.unbindAll();
 	        return;
+        });
+        obj->addMethod("removeFromTable", [this](QString strNodeId) {
+            auto node = m_server.nodeById(strNodeId);
+            if (!node)
+            {
+                return QString("Node %1 does not exist.").arg(strNodeId);
+            }
+            if (!m_model.removeNode(node))
+            {
+                return QString("Node %1 not in table.").arg(strNodeId);
+            }
+	        return QString("Success : %1 removed from table.").arg(strNodeId);
         });
         return;
     }
