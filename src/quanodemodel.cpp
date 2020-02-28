@@ -1,17 +1,31 @@
 #include "quanodemodel.h"
 #include <QUaNode>
 
-QUaNodeModel::QUaNodeWrapper::QUaNodeWrapper(QUaNode* node, QUaNodeModel::QUaNodeWrapper* parent/* = nullptr*/) :
+QUaNodeModel::QUaNodeWrapper::QUaNodeWrapper(
+    QUaNode* node, 
+    QUaNodeModel::QUaNodeWrapper* parent/* = nullptr*/,
+    const bool& recursive/* = true*/) :
         m_node(node), 
         m_parent(parent)
 {
-    Q_ASSERT_X(m_node, "QUaNodeWrapper", "Invalid node argument");
+    // m_node = null only supported if this is root (i.e. m_parent = null)
+    Q_ASSERT_X(m_node ? true : !m_parent, "QUaNodeWrapper", "Invalid node argument");
+    // nothing else to do if root
+    if (!m_node)
+    {
+        return;
+    }
     // subscribe to node destruction, store connection to disconnect on destructor
     m_connections <<
     QObject::connect(m_node, &QObject::destroyed,
     [this]() {
         this->m_node = nullptr;
     });
+    // check if need to add children
+    if (!recursive)
+    {
+        return;
+    }
     // build children tree
     for (auto child : m_node->browseChildren())
     {
@@ -77,6 +91,15 @@ QUaNodeModel::QUaNodeModel(QObject *parent)
     m_columnCount = 1;
 }
 
+QUaNodeModel::~QUaNodeModel()
+{
+    if (m_root)
+    {
+        delete m_root;
+        m_root = nullptr;
+    }
+}
+
 QUaNode* QUaNodeModel::nodeFromIndex(const QModelIndex& index) const
 {
     if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
@@ -136,7 +159,7 @@ void QUaNodeModel::removeColumnDataSource(const int& column)
 QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     // no header data if invalid root
-    if (!m_root || !m_root->node())
+    if (!m_root)
     {
         return QVariant();
     }
@@ -162,7 +185,7 @@ QVariant QUaNodeModel::headerData(int section, Qt::Orientation orientation, int 
 
 QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) const
 {
-    if (!m_root || !m_root->node() || !this->hasIndex(row, column, parent))
+    if (!m_root || !this->hasIndex(row, column, parent))
     {
         return QModelIndex();
     }
@@ -196,7 +219,7 @@ QModelIndex QUaNodeModel::index(int row, int column, const QModelIndex &parent) 
 
 QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
 {
-    if (!m_root || !m_root->node() || !index.isValid())
+    if (!m_root || !index.isValid())
     {
         return QModelIndex();
     }
@@ -229,7 +252,7 @@ QModelIndex QUaNodeModel::parent(const QModelIndex &index) const
 
 int QUaNodeModel::rowCount(const QModelIndex &parent) const
 {
-    if (!m_root || !m_root->node() || parent.column() > 0)
+    if (!m_root || parent.column() > 0)
     {
         return 0;
     }
@@ -252,7 +275,7 @@ int QUaNodeModel::rowCount(const QModelIndex &parent) const
 int QUaNodeModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    if (!m_root || !m_root->node())
+    if (!m_root)
     {
         return 0;
     }
@@ -263,7 +286,7 @@ int QUaNodeModel::columnCount(const QModelIndex &parent) const
 QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
 {
     // early exit for inhandled cases
-    if (!m_root || !m_root->node() || !index.isValid())
+    if (!m_root || !index.isValid())
     {
         return QVariant();
     }
@@ -297,7 +320,7 @@ QVariant QUaNodeModel::data(const QModelIndex& index, int role) const
 
 Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
 {
-    if (!m_root || !m_root->node() || !index.isValid())
+    if (!m_root || !index.isValid())
     {
         return Qt::NoItemFlags;
     }
@@ -321,4 +344,45 @@ Qt::ItemFlags QUaNodeModel::flags(const QModelIndex &index) const
     }
     // finally, after all this, item is editable
     return flags |= Qt::ItemIsEditable;
+}
+
+void QUaNodeModel::bindChangeCallbackForColumn(
+    const int& column, 
+    QUaNodeWrapper* wrapper,
+    const bool& recursive/* = true*/)
+{
+    Q_CHECK_PTR(wrapper);
+    if (wrapper->node() && m_mapDataSourceFuncs[column].m_changeCallback)
+    {
+        // pass in callback that user needs to call when a value is udpated
+        // store connection in wrapper so can be disconnected when wrapper deleted
+        wrapper->connections() <<
+            m_mapDataSourceFuncs[column].m_changeCallback(
+                wrapper->node(),
+                wrapper->getChangeCallbackForColumn(column, this)
+            );
+    }
+    // check if recursive
+    if (!recursive)
+    {
+        return;
+    }
+    // recurse children
+    for (auto child : wrapper->children())
+    {
+        this->bindChangeCallbackForColumn(column, child);
+    }
+}
+
+void QUaNodeModel::bindChangeCallbackForAllColumns(
+    QUaNodeWrapper* wrapper,
+    const bool& recursive)
+{
+    if (!m_mapDataSourceFuncs.isEmpty())
+    {
+        for (auto column : m_mapDataSourceFuncs.keys())
+        {
+            this->bindChangeCallbackForColumn(column, wrapper, recursive);
+        }
+    }
 }

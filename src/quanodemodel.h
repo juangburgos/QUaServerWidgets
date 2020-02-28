@@ -11,6 +11,7 @@ class QUaNodeModel : public QAbstractItemModel
 
 public:
     explicit QUaNodeModel(QObject *parent = nullptr);
+    ~QUaNodeModel();
 
     QUaNode* nodeFromIndex(const QModelIndex& index) const;
 
@@ -40,7 +41,10 @@ protected:
     class QUaNodeWrapper
     {
     public:
-        explicit QUaNodeWrapper(QUaNode* node, QUaNodeModel::QUaNodeWrapper* parent = nullptr);
+        explicit QUaNodeWrapper(
+            QUaNode* node, 
+            QUaNodeModel::QUaNodeWrapper* parent = nullptr, 
+            const bool &recursive = true);
         ~QUaNodeWrapper();
 
         QUaNode* node() const;
@@ -76,7 +80,14 @@ protected:
     QUaNodeWrapper* m_root;
     int m_columnCount;
 
-    virtual void bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* node) = 0;
+    void bindChangeCallbackForColumn(
+        const int& column,
+        QUaNodeWrapper* wrapper,
+        const bool& recursive = true);
+
+    void bindChangeCallbackForAllColumns(
+        QUaNodeWrapper* wrapper,
+        const bool& recursive = true);
 
     struct ColumnDataSource
     {

@@ -9,17 +9,15 @@ class QUaTreeModel : public QUaNodeModel
 
 public:
     explicit QUaTreeModel(QObject *parent = nullptr);
+    ~QUaTreeModel();
 
     QUaNode* rootNode() const;
     void     setRootNode(QUaNode* rootNode = nullptr);
 
 private:
     void bindRoot(QUaNodeWrapper* root);
-    void bindRecursivelly(QUaNodeWrapper* node);
-    void unbindNodeRecursivelly(QUaNodeWrapper* node);
-
-    void bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* node) override;
-    void bindChangeCallbackForColumnRecursivelly(const int& column, QUaNodeWrapper* node);
+    void bindRecursivelly(QUaNodeWrapper* wrapper);
+    void unbindNodeRecursivelly(QUaNodeWrapper* wrapper);    
 };
 
 #endif // QUATREEMODEL_H

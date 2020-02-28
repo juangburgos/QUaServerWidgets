@@ -2,6 +2,11 @@
 #define DIALOG_H
 
 #include <QDialog>
+#include <QMenu>
+
+#include <QUaServer>
+#include <QUaTypeModel>
+#include <QSortFilterProxyModel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
@@ -17,5 +22,16 @@ public:
 
 private:
     Ui::Dialog *ui;
+
+    void setupServer();
+    void setupTable();
+
+    void addMethods(QUaBaseObject * node, const bool &isObjsFolder = false);
+
+    QUaServer m_server;
+    QUaTypeModel m_model;
+    QSortFilterProxyModel m_proxy;
 };
+
 #endif // DIALOG_H
+
