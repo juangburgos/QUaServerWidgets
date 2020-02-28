@@ -65,6 +65,8 @@ bool QUaTableModel::removeNode(QUaNode* node)
     {
         return false;
     }
+    this->disconnect(node);
+    node->disconnect(this);
     this->removeWrapper(wrapper);
     return true;
 }
