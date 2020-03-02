@@ -15,8 +15,8 @@ public:
     template<typename T>
     void bindType(QUaServer* server);
 
-    //template<typename T>
-    //void unbindType();
+    template<typename T>
+    void unbindType();
 
     void unbindAll();
 
@@ -57,6 +57,46 @@ inline void QUaTypeModel::bindType(QUaServer* server)
     server->instanceCreated<T>([this](T * instance) {
         this->addNode(instance);
     });
+}
+
+template<typename T>
+inline void QUaTypeModel::unbindType()
+{
+    auto metaObject = T::staticMetaObject;
+    // check if OPC UA relevant
+    if (!metaObject.inherits(&QUaNode::staticMetaObject))
+    {
+        Q_ASSERT_X(false,
+            "QUaTypeModel::unbindType",
+            "Unsupported type. It must derive from QUaNode.");
+        return;
+    }
+    // check not bound yet
+    QString strTypeName = QString(metaObject.className());
+    if (!m_connections.contains(strTypeName))
+    {
+        Q_ASSERT_X(false,
+            "QUaTypeModel::unbindType",
+            "Type is not bound.");
+        return;
+    }
+    // unbind new children
+    QObject::disconnect(m_connections.take(strTypeName));
+    // unbind existing children
+    this->beginResetModel();
+    m_root->children().erase(
+	std::remove_if(m_root->children().begin(), m_root->children().end(),
+	[this, &strTypeName](QUaNodeModel::QUaNodeWrapper * wrapper) {
+        bool isOfType = strTypeName.compare(wrapper->node()->metaObject()->className(), Qt::CaseSensitive) == 0;
+        if (isOfType)
+        {
+            this->disconnect(wrapper->node());
+            wrapper->node()->disconnect(this);
+        }
+        return isOfType;
+	}),
+    m_root->children().end());
+    this->endResetModel();
 }
 
 

@@ -102,6 +102,14 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
             m_model.unbindAll();
 	        return;
         });
+        obj->addMethod("unbindQUaFolderObject", [this]() {
+            m_model.unbindType<QUaFolderObject>();
+	        return;
+        });
+        obj->addMethod("unbindQUaBaseObject", [this]() {
+            m_model.unbindType<QUaBaseObject>();
+	        return;
+        });
         obj->addMethod("removeFromTable", [this](QString strNodeId) {
             auto node = m_server.nodeById(strNodeId);
             if (!node)
