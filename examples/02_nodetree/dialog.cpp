@@ -142,13 +142,13 @@ void Dialog::setupTree()
         Q_CHECK_PTR(node);
         QString strType(node->metaObject()->className());
         // objects, objectsext and folders are all objects
-        if (strType.compare("QUaProperty", Qt::CaseInsensitive) == 0)
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) == 0)
         {
             auto prop = qobject_cast<QUaProperty*>(node);
             Q_CHECK_PTR(prop);
             this->setupQUaPropertyMenu(contextMenu, prop);
         }
-        else if (strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) == 0)
+        else if (strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) == 0)
         {
             auto datavar = qobject_cast<QUaBaseDataVariable*>(node);
             Q_CHECK_PTR(datavar);
@@ -177,8 +177,8 @@ void Dialog::setupTree()
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
         {
             return QVariant();
         }
@@ -189,8 +189,8 @@ void Dialog::setupTree()
     [](QUaNode * node, std::function<void()> changeCallback) {
         QString strType(node->metaObject()->className());
         // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
         {
             return QMetaObject::Connection();
         }
@@ -204,8 +204,8 @@ void Dialog::setupTree()
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only edit value for variables
-        if (strType.compare("QUaProperty", Qt::CaseInsensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseInsensitive) != 0)
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
         {
             return false;
         }
@@ -238,6 +238,7 @@ void Dialog::setupTree()
         Q_CHECK_PTR(var);
         var->setValue(sbox->value());
     });
+
     // allow sorting
     m_proxy.setSourceModel(&m_model);
     ui->treeView->setModel(&m_proxy);
@@ -296,7 +297,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
     menu.addSeparator();
     QString strType(obj->metaObject()->className());
     // objectsext can add multiple children at once
-    if (strType.compare("QUaBaseObjectExt", Qt::CaseInsensitive) == 0)
+    if (strType.compare("QUaBaseObjectExt", Qt::CaseSensitive) == 0)
     {
         menu.addAction(tr("Add Multiple QUaBaseObjectExt"), this,
 	    [this, obj]() {

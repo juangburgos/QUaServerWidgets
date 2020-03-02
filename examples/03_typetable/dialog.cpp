@@ -1,6 +1,8 @@
 #include "dialog.h"
 #include "ui_dialog.h"
 
+#include <QSpinBox>
+
 Dialog::Dialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::Dialog)
@@ -43,8 +45,9 @@ void Dialog::setupServer()
 void Dialog::setupTable()
 {
     // setup model
-    m_model.bindType<QUaFolderObject>(&m_server);
-    m_model.bindType<QUaBaseObject>(&m_server);
+    //m_model.bindType<QUaFolderObject>(&m_server);
+    //m_model.bindType<QUaBaseObject>(&m_server);
+    m_model.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
     m_model.setColumnDataSource(0, tr("Display Name"), 
     [](QUaNode * node) {
@@ -53,6 +56,71 @@ void Dialog::setupTable()
     m_model.setColumnDataSource(1, tr("Node Id"), 
     [](QUaNode * node) {
         return node->nodeId();
+    });
+    m_model.setColumnDataSource(2, tr("Value"), 
+    [](QUaNode * node) {
+        QString strType(node->metaObject()->className());
+        // only print value for variables
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+        {
+            return QVariant();
+        }
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        return var->value();
+    },
+    [](QUaNode * node, std::function<void()> changeCallback) {
+        QString strType(node->metaObject()->className());
+        // only print value for variables
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+        {
+            return QMetaObject::Connection();
+        }
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        return QObject::connect(var, &QUaBaseVariable::valueChanged,
+        [changeCallback]() {
+            changeCallback();
+        });
+    },
+    [](QUaNode * node) {
+        QString strType(node->metaObject()->className());
+        // only edit value for variables
+        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+        {
+            return false;
+        }
+        return true;
+    });
+
+    // setup tree editor
+    ui->tableView->setColumnEditor(2,
+    [](QWidget* parent, QUaNode* node) {
+        Q_UNUSED(node);
+        // create editor
+        auto editor = new QSpinBox(parent);
+        editor->setMinimum((std::numeric_limits<int>::min)());
+        editor->setMaximum((std::numeric_limits<int>::max)());
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        // set current value to editor
+        Q_CHECK_PTR(var);
+        editor->setValue(var->value().toInt());
+        return editor;
+    }, 
+    [](QWidget* editor, QUaNode* node) {
+        // do nothing if value changes while editing, 
+        // else user input will be overwritten
+        Q_UNUSED(editor);
+        Q_UNUSED(node);
+    },
+    [](QWidget* editor, QUaNode* node) {
+        auto sbox = static_cast<QSpinBox*>(editor);
+        auto var  = qobject_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        var->setValue(sbox->value());
     });
 
     // allow sorting
