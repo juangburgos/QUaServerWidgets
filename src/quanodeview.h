@@ -36,7 +36,7 @@ public:
 protected:
 	T* m_thiz;
 	// copy to avoid dynamic-casting all the time
-	QUaNodeModel* m_model;
+	QUaNodeModel<QUaNode>* m_model;
 	QSortFilterProxyModel* m_proxy;
 	// internal editor callbacks
 	struct ColumnEditor
@@ -86,13 +86,13 @@ template<class T>
 template<class B>
 inline void QUaNodeView<T>::setModel(QAbstractItemModel* model)
 {
-	auto nodeModel = dynamic_cast<QUaNodeModel*>(model);
+	auto nodeModel = dynamic_cast<QUaNodeModel<QUaNode>*>(model);
 	if (!nodeModel)
 	{
 		m_proxy = dynamic_cast<QSortFilterProxyModel*>(model);
 		if (m_proxy)
 		{
-			nodeModel = dynamic_cast<QUaNodeModel*>(m_proxy->sourceModel());
+			nodeModel = dynamic_cast<QUaNodeModel<QUaNode>*>(m_proxy->sourceModel());
 		}
 	}
 	else

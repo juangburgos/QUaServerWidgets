@@ -61,6 +61,22 @@ Dialog::Dialog(QWidget *parent)
     [this](QString strBuildNumber) {
         m_server.setBuildNumber(strBuildNumber);
     });
+
+    QObject::connect(&m_server, &QUaServer::logMessage, &m_model,
+    [this](const QUaLog& log) {
+        m_logs << log;
+        m_model.addNode(&m_logs.last());
+    });
+    // setup model column data sources
+    m_model.setColumnDataSource(0, tr("Category"), 
+    [](QUaLog* log) {
+        return static_cast<int>(log->category);
+    }/* second callback is only necessary for data that changes */);
+    m_model.setColumnDataSource(1, tr("Message"), 
+    [](QUaLog* log) {
+        return log->message;
+    });
+    ui->tableViewLogs->setModel(&m_model);
 }
 
 Dialog::~Dialog()

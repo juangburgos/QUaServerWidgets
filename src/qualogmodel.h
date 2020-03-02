@@ -1,22 +1,27 @@
 #ifndef QUALOGMODEL_H
 #define QUALOGMODEL_H
 
-#include <QAbstractTableModel>
+#include <QUaNode>
+#include <QUaNodeModel>
 
-class QUaLogModel : public QAbstractTableModel
+class QUaLogModel : public QUaNodeModel<QUaLog>
 {
     Q_OBJECT
 
 public:
-    explicit QUaLogModel(QObject *parent = nullptr);
-
-    // Basic functionality:
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
-private:
+    explicit QUaLogModel(QObject* parent = nullptr);
+    ~QUaLogModel();
+    
+    void addNode(QUaLog* node);
+    
+    void addNodes(const QList<QUaLog*>& nodes);
+    
+    bool removeNode(QUaLog* node);
+    
+    void clear();
+    
+protected:
+    void removeWrapper(QUaNodeModel<QUaLog>::QUaNodeWrapper* wrapper);
 };
 
 #endif // QUALOGMODEL_H

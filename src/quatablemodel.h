@@ -1,9 +1,10 @@
 #ifndef QUATABLEMODEL_H
 #define QUATABLEMODEL_H
 
+#include <QUaNode>
 #include <QUaNodeModel>
 
-class QUaTableModel : public QUaNodeModel
+class QUaTableModel : public QUaNodeModel<QUaNode>
 {
     Q_OBJECT
 
@@ -20,7 +21,7 @@ public:
     void clear();
 
 protected:
-    void removeWrapper(QUaNodeModel::QUaNodeWrapper * wrapper);
+    void removeWrapper(QUaNodeModel<QUaNode>::QUaNodeWrapper * wrapper);
 };
 
 #endif // QUATABLEMODEL_H

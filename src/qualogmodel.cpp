@@ -1,33 +1,113 @@
 #include "qualogmodel.h"
 
-QUaLogModel::QUaLogModel(QObject *parent)
-    : QAbstractTableModel(parent)
+QUaLogModel::QUaLogModel(QObject* parent)
+    : QUaNodeModel(parent)
 {
+    m_root = new QUaNodeModel<QUaLog>::QUaNodeWrapper(nullptr);
 }
 
-int QUaLogModel::rowCount(const QModelIndex &parent) const
+QUaLogModel::~QUaLogModel()
 {
-    if (parent.isValid())
-        return 0;
-
-    // FIXME: Implement me!
-    return 0;
+    if (m_root)
+    {
+        delete m_root;
+        m_root = nullptr;
+    }
 }
 
-int QUaLogModel::columnCount(const QModelIndex &parent) const
-{
-    if (parent.isValid())
-        return 0;
 
-    // FIXME: Implement me!
-    return 0;
+void QUaLogModel::addNode(QUaLog* node)
+{
+    Q_ASSERT(!m_root->childByNode(node));
+    QModelIndex index = m_root->index();
+    // get new node's row
+    int row = m_root->children().count();
+    // notify views that row will be added
+    this->beginInsertRows(index, row, row);
+    // create new wrapper
+    auto* wrapper = new QUaNodeModel<QUaLog>::QUaNodeWrapper(node, m_root, false);
+    // apprend to parent's children list
+    m_root->children() << wrapper;
+    // notify views that row addition has finished
+    this->endInsertRows();
+    // force index creation (indirectly)
+    // because sometimes they are not created until a view requires them
+    // and if a child is added and parent's index is not ready then crash
+    bool indexOk = this->checkIndex(this->index(row, 0, index), CheckIndexOption::IndexIsValid);
+    Q_ASSERT(indexOk);
+    Q_UNUSED(indexOk);
+    // bind callback for data change on each column
+    this->bindChangeCallbackForAllColumns(wrapper, false);
+    // subscribe to instance removed
+    // remove rows better be queued in the event loop
+
+    //QObject::connect(node, &QObject::destroyed, this,
+    //[this, wrapper]() {
+    //    Q_CHECK_PTR(wrapper);
+    //    Q_ASSERT(m_root);
+    //    // remove
+    //    this->removeWrapper(wrapper);
+    //}, Qt::QueuedConnection);
 }
 
-QVariant QUaLogModel::data(const QModelIndex &index, int role) const
+void QUaLogModel::addNodes(const QList<QUaLog*>& nodes)
 {
-    if (!index.isValid())
-        return QVariant();
+    for (auto node : nodes)
+    {
+        this->addNode(node);
+    }
+}
 
-    // FIXME: Implement me!
-    return QVariant();
+bool QUaLogModel::removeNode(QUaLog* node)
+{
+    auto wrapper = m_root->childByNode(node);
+    if (!wrapper)
+    {
+        return false;
+    }
+    //this->disconnect(node);
+    //node->disconnect(this);
+    this->removeWrapper(wrapper);
+    return true;
+}
+
+void QUaLogModel::clear()
+{
+    this->beginResetModel();
+    while (m_root->children().count() > 0)
+    {
+        auto wrapper = m_root->children().takeFirst();
+        //this->disconnect(wrapper->node());
+        //wrapper->node()->disconnect(this);
+        delete wrapper;
+    }
+    this->endResetModel();
+}
+
+void QUaLogModel::removeWrapper(QUaNodeModel<QUaLog>::QUaNodeWrapper* wrapper)
+{
+    // only use indexes created by model
+    int row = wrapper->index().row();
+    QModelIndex index = m_root->index();
+    // when deleteing a node of type T that has children of type T, 
+    // QObject::destroyed is triggered from top to bottom without 
+    // giving a change for the model to update its indices and rows wont match
+    if (row >= m_root->children().count() ||
+        wrapper != m_root->children().at(row))
+    {
+        // force reindexing
+        for (int r = 0; r < m_root->children().count(); r++)
+        {
+            this->index(r, 0, index);
+        }
+        row = wrapper->index().row();
+    }
+    Q_ASSERT(this->checkIndex(this->index(row, 0, index), CheckIndexOption::IndexIsValid));
+    Q_ASSERT(wrapper == m_root->children().at(row));
+    // notify views that row will be removed
+    this->beginRemoveRows(index, row, row);
+    // remove from parent
+    delete m_root->children().takeAt(row);
+    // notify views that row removal has finished
+    this->endRemoveRows();
 }

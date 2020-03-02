@@ -5,7 +5,7 @@
 QUaTableModel::QUaTableModel(QObject *parent)
     : QUaNodeModel(parent)
 {
-    m_root = new QUaNodeWrapper(nullptr);
+    m_root = new QUaNodeModel<QUaNode>::QUaNodeWrapper(nullptr);
 }
 
 QUaTableModel::~QUaTableModel()
@@ -26,7 +26,7 @@ void QUaTableModel::addNode(QUaNode* node)
     // notify views that row will be added
     this->beginInsertRows(index, row, row);
     // create new wrapper
-    auto* wrapper = new QUaNodeWrapper(node, m_root, false);
+    auto* wrapper = new QUaNodeModel<QUaNode>::QUaNodeWrapper(node, m_root, false);
     // apprend to parent's children list
     m_root->children() << wrapper;
     // notify views that row addition has finished
@@ -84,7 +84,7 @@ void QUaTableModel::clear()
     this->endResetModel();
 }
 
-void QUaTableModel::removeWrapper(QUaNodeModel::QUaNodeWrapper* wrapper)
+void QUaTableModel::removeWrapper(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapper)
 {
     // only use indexes created by model
     int row = wrapper->index().row();
@@ -111,4 +111,3 @@ void QUaTableModel::removeWrapper(QUaNodeModel::QUaNodeWrapper* wrapper)
     // notify views that row removal has finished
     this->endRemoveRows();
 }
-
