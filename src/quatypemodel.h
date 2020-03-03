@@ -1,10 +1,11 @@
 #ifndef QUATYPEMODEL_H
 #define QUATYPEMODEL_H
 
+#include <QUaNodeModelItemTraits>
 #include <QUaTableModel>
 #include <QUaServer>
 
-class QUaTypeModel : public QUaTableModel
+class QUaTypeModel : public QUaTableModel<QUaNode*>
 {
     Q_OBJECT
 
@@ -86,12 +87,11 @@ inline void QUaTypeModel::unbindType()
     this->beginResetModel();
     m_root->children().erase(
 	std::remove_if(m_root->children().begin(), m_root->children().end(),
-	[this, &strTypeName](QUaNodeModel::QUaNodeWrapper * wrapper) {
+	[this, &strTypeName](QUaModel::QUaNodeWrapper * wrapper) {
         bool isOfType = strTypeName.compare(wrapper->node()->metaObject()->className(), Qt::CaseSensitive) == 0;
         if (isOfType)
         {
-            this->disconnect(wrapper->node());
-            wrapper->node()->disconnect(this);
+            delete wrapper;
         }
         return isOfType;
 	}),

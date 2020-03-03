@@ -1,10 +1,10 @@
 #ifndef QUATREEMODEL_H
 #define QUATREEMODEL_H
 
-#include <QUaNode>
-#include <QUaNodeModel>
+#include <QUaNodeModelItemTraits>
+#include <QUaModel>
 
-class QUaTreeModel : public QUaNodeModel<QUaNode>
+class QUaTreeModel : public QUaModel<QUaNode*>
 {
     Q_OBJECT
 
@@ -16,9 +16,9 @@ public:
     void     setRootNode(QUaNode* rootNode = nullptr);
 
 private:
-    void bindRoot(QUaNodeModel<QUaNode>::QUaNodeWrapper* root);
-    void bindRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapper);
-    void unbindNodeRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapper);
+    void bindRoot(QUaModel<QUaNode*>::QUaNodeWrapper* root);
+    void bindRecursivelly(QUaModel<QUaNode*>::QUaNodeWrapper* wrapper);
+    void unbindNodeRecursivelly(QUaModel<QUaNode*>::QUaNodeWrapper* wrapper);
 };
 
 #endif // QUATREEMODEL_H

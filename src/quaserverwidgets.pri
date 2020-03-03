@@ -6,7 +6,7 @@ FORMS += \
 
 HEADERS += \
     $$PWD/qualogmodel.h \
-    $$PWD/quanodemodel.h \
+    $$PWD/quamodel.h \
     $$PWD/quanodetableview.h \
     $$PWD/quanodetreeview.h \
     $$PWD/quanodeview.h \
@@ -14,17 +14,14 @@ HEADERS += \
     $$PWD/quasessionmodel.h \
     $$PWD/quatablemodel.h \
     $$PWD/quatreemodel.h \
-    $$PWD/quatypemodel.h
-
+    $$PWD/quatypemodel.h \
+    $$PWD/quamodelitemtraits.h \
+    $$PWD/quanodemodelitemtraits.h
 
 SOURCES += \
-    $$PWD/qualogmodel.cpp \
-    $$PWD/quanodemodel.cpp \
     $$PWD/quanodetableview.cpp \
     $$PWD/quanodetreeview.cpp \
     $$PWD/quaserverwidget.cpp \
-    $$PWD/quasessionmodel.cpp \
-    $$PWD/quatablemodel.cpp \
     $$PWD/quatreemodel.cpp \
     $$PWD/quatypemodel.cpp
 

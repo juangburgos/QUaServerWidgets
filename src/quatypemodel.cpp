@@ -1,7 +1,7 @@
 #include "quatypemodel.h"
 
 QUaTypeModel::QUaTypeModel(QObject *parent)
-    : QUaTableModel(parent)
+    : QUaTableModel<QUaNode*>(parent)
 {
     
 }

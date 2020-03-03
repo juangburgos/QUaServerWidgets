@@ -45,8 +45,8 @@ void Dialog::setupServer()
 void Dialog::setupTable()
 {
     // setup model
-    //m_model.bindType<QUaFolderObject>(&m_server);
-    //m_model.bindType<QUaBaseObject>(&m_server);
+    m_model.bindType<QUaFolderObject>(&m_server);
+    m_model.bindType<QUaBaseObject>(&m_server);
     m_model.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
     m_model.setColumnDataSource(0, tr("Display Name"), 

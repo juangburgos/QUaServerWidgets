@@ -7,6 +7,7 @@
 class QUaNodeTreeView : public QTreeView, public QUaNodeView<QUaNodeTreeView>
 {
     Q_OBJECT
+    // to be able to access base class QTreeView protected members
     friend class QUaNodeView<QUaNodeTreeView>;
 public:
     explicit QUaNodeTreeView(QWidget *parent = nullptr);

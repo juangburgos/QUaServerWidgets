@@ -5,6 +5,8 @@
 
 #include <QUaServer>
 #include <QUaLogModel>
+#include <QUaSessionModel>
+#include <QSortFilterProxyModel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
@@ -18,11 +20,20 @@ public:
     Dialog(QWidget *parent = nullptr);
     ~Dialog();
 
+    void setupServer();
+    void setupLogTable();
+    void setupSessionTable();
+
+private slots:
+    void on_pushButtonClearLog_clicked();
+
 private:
     Ui::Dialog *ui;
 
-    QUaServer m_server;
-    QUaLogModel m_model;
-    QList<QUaLog> m_logs;
+    QUaServer             m_server;
+    QUaLogModel           m_modelLog;
+    QSortFilterProxyModel m_proxyLog;
+    QUaSessionModel       m_modelSession;
+    QSortFilterProxyModel m_proxySession;
 };
 #endif // DIALOG_H

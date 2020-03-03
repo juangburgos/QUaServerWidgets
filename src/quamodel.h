@@ -2,47 +2,24 @@
 #define QUANODEMODEL_H
 
 #include <QAbstractItemModel>
-
-// trait used to check if type has void T::destroyed(QObject*)
-template <typename T, typename = void>
-struct QUaHasMethodDestroyed
-	: std::false_type
-{};
-
-template <typename T>
-struct QUaHasMethodDestroyed<T,
-	typename std::enable_if<std::is_same<decltype(&T::destroyed), void(T::*)(QObject*)>::value>::type>
-	: std::true_type
-{};
-
-// trait used to check if type has QList<T*> T::browseChildren(const QString&)
-template <typename T, typename = void>
-struct QUaHasMethodBrowseChildren
-	: std::false_type
-{};
-
-template <typename T>
-struct QUaHasMethodBrowseChildren<T,
-	typename std::enable_if<std::is_same<decltype(&T::browseChildren), QList<T*>(T::*)(const QString&)>::value>::type>
-	: std::true_type
-{};
+#include <QUaModelItemTraits>
 
 template <class T>
-class QUaNodeModel : public QAbstractItemModel
+class QUaModel : public QAbstractItemModel
 {
 
 public:
-    explicit QUaNodeModel(QObject *parent = nullptr);
-    ~QUaNodeModel();
+    explicit QUaModel(QObject *parent = nullptr);
+    ~QUaModel();
 
-    T* nodeFromIndex(const QModelIndex& index) const;
+    T nodeFromIndex(const QModelIndex& index) const;
 
     void setColumnDataSource(
         const int& column, 
         const QString &strHeader, 
-        std::function<QVariant(T*)> dataCallback,
-        std::function<QMetaObject::Connection(T*, std::function<void()>)> changeCallback = nullptr,
-        std::function<bool(T*)> editableCallback = nullptr
+        std::function<QVariant(T)> dataCallback,
+        std::function<QMetaObject::Connection(T, std::function<void()>)> changeCallback = nullptr,
+        std::function<bool(T)> editableCallback = nullptr
     );
     void removeColumnDataSource(const int& column);
 
@@ -60,48 +37,33 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
 protected:
+
     class QUaNodeWrapper
     {
     public:
         explicit QUaNodeWrapper(
-            T* node, 
-            QUaNodeModel<T>::QUaNodeWrapper* parent = nullptr,
+            T node, 
+            QUaModel<T>::QUaNodeWrapper* parent = nullptr,
             const bool &recursive = true);
         ~QUaNodeWrapper();
 
-        T* node() const;
+        T node() const;
 
         QModelIndex index() const;
         void setIndex(const QModelIndex &index);
 
-        QUaNodeModel<T>::QUaNodeWrapper* parent() const;
-        QUaNodeModel<T>::QUaNodeWrapper* childByNode(T* node) const;
+        QUaModel<T>::QUaNodeWrapper* parent() const;
+        QUaModel<T>::QUaNodeWrapper* childByNode(T node) const;
 
         // NOTE : return by reference
-        QList<QUaNodeModel<T>::QUaNodeWrapper*> & children();
+        QList<QUaModel<T>::QUaNodeWrapper*> & children();
         QList<QMetaObject::Connection> & connections();
 
         std::function<void()> getChangeCallbackForColumn(const int& column, QAbstractItemModel* model);
 
-		template<typename Q>
-		typename std::enable_if<QUaHasMethodDestroyed<Q>::value, bool>::type
-			bindDestroyed();
-
-		template<typename Q>
-		typename std::enable_if<!QUaHasMethodDestroyed<Q>::value, bool>::type
-			bindDestroyed();
-
-		template<typename Q>
-		typename std::enable_if<QUaHasMethodBrowseChildren<Q>::value, bool>::type
-			bindChildren();
-
-		template<typename Q>
-		typename std::enable_if<!QUaHasMethodBrowseChildren<Q>::value, bool>::type
-			bindChildren();
-
     private:
         // internal data
-        T* m_node;
+        T m_node;
         // NOTE : need index to support model manipulation 
         //        cannot use createIndex outside Qt's API
         //        (doesnt work even inside a QAbstractItemModel member)
@@ -131,15 +93,15 @@ protected:
     struct ColumnDataSource
     {
         QString m_strHeader;
-        std::function<QVariant(T*)> m_dataCallback;
-        std::function<QMetaObject::Connection(T*, std::function<void()>)> m_changeCallback;
-        std::function<bool(T*)> m_editableCallback;
+        std::function<QVariant(T)> m_dataCallback;
+        std::function<QMetaObject::Connection(T, std::function<void()>)> m_changeCallback;
+        std::function<bool(T)> m_editableCallback;
     };
     QMap<int, ColumnDataSource> m_mapDataSourceFuncs;
 };
 
 template<class T>
-inline QUaNodeModel<T>::QUaNodeModel(QObject* parent) :
+inline QUaModel<T>::QUaModel(QObject* parent) :
 	QAbstractItemModel(parent)
 {
 	m_root = nullptr;
@@ -147,7 +109,7 @@ inline QUaNodeModel<T>::QUaNodeModel(QObject* parent) :
 }
 
 template<class T>
-inline QUaNodeModel<T>::~QUaNodeModel()
+inline QUaModel<T>::~QUaModel()
 {
 	if (m_root)
 	{
@@ -157,7 +119,7 @@ inline QUaNodeModel<T>::~QUaNodeModel()
 }
 
 template<class T>
-inline T* QUaNodeModel<T>::nodeFromIndex(const QModelIndex& index) const
+inline T QUaModel<T>::nodeFromIndex(const QModelIndex& index) const
 {
 	if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
 	{
@@ -169,12 +131,12 @@ inline T* QUaNodeModel<T>::nodeFromIndex(const QModelIndex& index) const
 }
 
 template<class T>
-inline void QUaNodeModel<T>::setColumnDataSource(
+inline void QUaModel<T>::setColumnDataSource(
     const int& column, 
     const QString& strHeader, 
-    std::function<QVariant(T*)> dataCallback, 
-    std::function<QMetaObject::Connection(T*, std::function<void()>)> changeCallback, 
-    std::function<bool(T*)> editableCallback)
+    std::function<QVariant(T)> dataCallback, 
+    std::function<QMetaObject::Connection(T, std::function<void()>)> changeCallback, 
+    std::function<bool(T)> editableCallback)
 {
 	Q_ASSERT(column >= 0);
 	if (column < 0)
@@ -200,7 +162,7 @@ inline void QUaNodeModel<T>::setColumnDataSource(
 }
 
 template<class T>
-inline void QUaNodeModel<T>::removeColumnDataSource(const int& column)
+inline void QUaModel<T>::removeColumnDataSource(const int& column)
 {
 	Q_ASSERT(column >= 0);
 	if (column < 0 || column >= m_columnCount || !m_mapDataSourceFuncs.contains(column))
@@ -215,7 +177,7 @@ inline void QUaNodeModel<T>::removeColumnDataSource(const int& column)
 }
 
 template<class T>
-inline QVariant QUaNodeModel<T>::headerData(int section, Qt::Orientation orientation, int role) const
+inline QVariant QUaModel<T>::headerData(int section, Qt::Orientation orientation, int role) const
 {
 	// no header data if invalid root
 	if (!m_root)
@@ -231,7 +193,7 @@ inline QVariant QUaNodeModel<T>::headerData(int section, Qt::Orientation orienta
 	if (m_mapDataSourceFuncs.isEmpty())
 	{
 		Q_ASSERT(m_columnCount == 1);
-		return tr("Display Name");
+		return tr("");
 	}
 	// empty if no ColumnDataSource defined for this column
 	if (!m_mapDataSourceFuncs.contains(section))
@@ -243,7 +205,7 @@ inline QVariant QUaNodeModel<T>::headerData(int section, Qt::Orientation orienta
 }
 
 template<class T>
-inline QModelIndex QUaNodeModel<T>::index(int row, int column, const QModelIndex& parent) const
+inline QModelIndex QUaModel<T>::index(int row, int column, const QModelIndex& parent) const
 {
 	if (!m_root || !this->hasIndex(row, column, parent))
 	{
@@ -278,7 +240,7 @@ inline QModelIndex QUaNodeModel<T>::index(int row, int column, const QModelIndex
 }
 
 template<class T>
-inline QModelIndex QUaNodeModel<T>::parent(const QModelIndex& index) const
+inline QModelIndex QUaModel<T>::parent(const QModelIndex& index) const
 {
 	if (!m_root || !index.isValid())
     {
@@ -312,7 +274,7 @@ inline QModelIndex QUaNodeModel<T>::parent(const QModelIndex& index) const
 }
 
 template<class T>
-inline int QUaNodeModel<T>::rowCount(const QModelIndex& parent) const
+inline int QUaModel<T>::rowCount(const QModelIndex& parent) const
 {
 	if (!m_root || parent.column() > 0)
 	{
@@ -335,7 +297,7 @@ inline int QUaNodeModel<T>::rowCount(const QModelIndex& parent) const
 }
 
 template<class T>
-inline int QUaNodeModel<T>::columnCount(const QModelIndex& parent) const
+inline int QUaModel<T>::columnCount(const QModelIndex& parent) const
 {
 	Q_UNUSED(parent);
 	if (!m_root)
@@ -347,7 +309,7 @@ inline int QUaNodeModel<T>::columnCount(const QModelIndex& parent) const
 }
 
 template<class T>
-inline QVariant QUaNodeModel<T>::data(const QModelIndex& index, int role) const
+inline QVariant QUaModel<T>::data(const QModelIndex& index, int role) const
 {
 	// early exit for inhandled cases
 	if (!m_root || !index.isValid())
@@ -360,7 +322,7 @@ inline QVariant QUaNodeModel<T>::data(const QModelIndex& index, int role) const
 		return QVariant();
 	}
 	// get internal reference
-	auto wrapper = static_cast<QUaNodeModel<T>::QUaNodeWrapper*>(index.internalPointer());
+	auto wrapper = static_cast<QUaModel<T>::QUaNodeWrapper*>(index.internalPointer());
 	// check internal wrapper data is valid, because wrapper->node() is always deleted before wrapper
 	if (!wrapper->node())
 	{
@@ -370,8 +332,7 @@ inline QVariant QUaNodeModel<T>::data(const QModelIndex& index, int role) const
 	if (m_mapDataSourceFuncs.isEmpty())
 	{
 		Q_ASSERT(m_columnCount == 1);
-		//return wrapper->node()->displayName();
-		return "";
+		return tr("");
 	}
 	// empty if no ColumnDataSource defined for this column
 	if (!m_mapDataSourceFuncs.contains(index.column()) ||
@@ -384,7 +345,7 @@ inline QVariant QUaNodeModel<T>::data(const QModelIndex& index, int role) const
 }
 
 template<class T>
-inline Qt::ItemFlags QUaNodeModel<T>::flags(const QModelIndex& index) const
+inline Qt::ItemFlags QUaModel<T>::flags(const QModelIndex& index) const
 {
 	if (!m_root || !index.isValid())
 	{
@@ -413,7 +374,7 @@ inline Qt::ItemFlags QUaNodeModel<T>::flags(const QModelIndex& index) const
 }
 
 template<class T>
-inline void QUaNodeModel<T>::bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* wrapper, const bool& recursive)
+inline void QUaModel<T>::bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* wrapper, const bool& recursive)
 {
 	Q_CHECK_PTR(wrapper);
 	if (wrapper->node() && m_mapDataSourceFuncs[column].m_changeCallback)
@@ -439,7 +400,7 @@ inline void QUaNodeModel<T>::bindChangeCallbackForColumn(const int& column, QUaN
 }
 
 template<class T>
-inline void QUaNodeModel<T>::bindChangeCallbackForAllColumns(QUaNodeWrapper* wrapper, const bool& recursive)
+inline void QUaModel<T>::bindChangeCallbackForAllColumns(QUaNodeWrapper* wrapper, const bool& recursive)
 {
 	if (!m_mapDataSourceFuncs.isEmpty())
 	{
@@ -451,9 +412,9 @@ inline void QUaNodeModel<T>::bindChangeCallbackForAllColumns(QUaNodeWrapper* wra
 }
 
 template<class T>
-inline QUaNodeModel<T>::QUaNodeWrapper::QUaNodeWrapper(
-	T* node, 
-	QUaNodeModel<T>::QUaNodeWrapper* parent/* = nullptr*/,
+inline QUaModel<T>::QUaNodeWrapper::QUaNodeWrapper(
+	T node, 
+	QUaModel<T>::QUaNodeWrapper* parent/* = nullptr*/,
 	const bool& recursive/* = true*/) :
 	m_node(node),
 	m_parent(parent)
@@ -466,18 +427,32 @@ inline QUaNodeModel<T>::QUaNodeWrapper::QUaNodeWrapper(
 		return;
 	}
 	// subscribe to node destruction, store connection to disconnect on destructor
-	this->bindDestroyed<T>();
+	QMetaObject::Connection conn = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
+		QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::DestroyCallback<T>(m_node, (std::function<void(void)>)
+			[this]() {
+				this->m_node = nullptr;
+			}
+		);
+	if (conn)
+	{
+		m_connections << conn;
+	}
 	// check if need to add children
 	if (!recursive)
 	{
 		return;
 	}
 	// build children tree
-	this->bindChildren<T>();
+	QList<T> children = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
+		QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::GetChildren<T>(m_node);
+	for (auto child : children)
+	{
+		m_children << new QUaModel<T>::QUaNodeWrapper(child, this);
+	}
 }
 
 template<class T>
-inline QUaNodeModel<T>::QUaNodeWrapper::~QUaNodeWrapper()
+inline QUaModel<T>::QUaNodeWrapper::~QUaNodeWrapper()
 {
 	while (m_connections.count() > 0)
 	{
@@ -487,102 +462,62 @@ inline QUaNodeModel<T>::QUaNodeWrapper::~QUaNodeWrapper()
 }
 
 template<class T>
-inline T* QUaNodeModel<T>::QUaNodeWrapper::node() const
+inline T QUaModel<T>::QUaNodeWrapper::node() const
 {
 	return m_node;
 }
 
 template<class T>
-inline QModelIndex QUaNodeModel<T>::QUaNodeWrapper::index() const
+inline QModelIndex QUaModel<T>::QUaNodeWrapper::index() const
 {
 	return m_index;
 }
 
 template<class T>
-inline void QUaNodeModel<T>::QUaNodeWrapper::setIndex(const QModelIndex& index)
+inline void QUaModel<T>::QUaNodeWrapper::setIndex(const QModelIndex& index)
 {
 	m_index = index;
 }
 
 template<class T>
-inline typename QUaNodeModel<T>::QUaNodeWrapper* QUaNodeModel<T>::QUaNodeWrapper::parent() const
+inline typename QUaModel<T>::QUaNodeWrapper* QUaModel<T>::QUaNodeWrapper::parent() const
 {
 	return m_parent;
 }
 
 template<class T>
-inline typename QUaNodeModel<T>::QUaNodeWrapper * QUaNodeModel<T>::QUaNodeWrapper::childByNode(T* node) const
+inline typename QUaModel<T>::QUaNodeWrapper * QUaModel<T>::QUaNodeWrapper::childByNode(T node) const
 {
 	auto res = std::find_if(m_children.begin(), m_children.end(),
-	[node](QUaNodeModel<T>::QUaNodeWrapper* wrapper) {
+	[node](QUaModel<T>::QUaNodeWrapper* wrapper) {
 		return wrapper->m_node == node;
 	});
 	return res == m_children.end() ? nullptr : *res;
 }
 
 template<class T>
-inline QList<typename QUaNodeModel<T>::QUaNodeWrapper*>& QUaNodeModel<T>::QUaNodeWrapper::children()
+inline QList<typename QUaModel<T>::QUaNodeWrapper*>& QUaModel<T>::QUaNodeWrapper::children()
 {
 	return m_children;
 }
 
 template<class T>
-inline QList<QMetaObject::Connection>& QUaNodeModel<T>::QUaNodeWrapper::connections()
+inline QList<QMetaObject::Connection>& QUaModel<T>::QUaNodeWrapper::connections()
 {
 	return m_connections;
 }
 
 template<class T>
-inline std::function<void()> QUaNodeModel<T>::QUaNodeWrapper::getChangeCallbackForColumn(const int& column, QAbstractItemModel* model)
+inline std::function<void()> QUaModel<T>::QUaNodeWrapper::getChangeCallbackForColumn(const int& column, QAbstractItemModel* model)
 {
 	return [this, column, model]()
 	{
-		QModelIndex index = column == m_index.column() ?
+		QModelIndex index = (column == m_index.column()) ?
 			m_index :
 			m_index.siblingAtColumn(column);
 		Q_ASSERT(index.isValid());
 		emit model->dataChanged(index, index, QVector<int>() << Qt::DisplayRole);
 	};
-}
-
-template<class T>
-template<typename Q>
-inline typename std::enable_if<QUaHasMethodDestroyed<Q>::value, bool>::type 
-QUaNodeModel<T>::QUaNodeWrapper::bindDestroyed()
-{
-	m_connections <<
-	QObject::connect(m_node, &QObject::destroyed,
-	[this]() {
-		this->m_node = nullptr;
-	});
-	return true;
-}
-
-template<class T>
-template<typename Q>
-inline typename std::enable_if<!QUaHasMethodDestroyed<Q>::value, bool>::type
-QUaNodeModel<T>::QUaNodeWrapper::bindDestroyed()
-{
-	return false;
-}
-
-template<class T>
-template<typename Q>
-inline typename std::enable_if<QUaHasMethodBrowseChildren<Q>::value, bool>::type 
-QUaNodeModel<T>::QUaNodeWrapper::bindChildren()
-{
-	for (auto child : m_node->browseChildren())
-	{
-		m_children << new QUaNodeModel<T>::QUaNodeWrapper(child, this);
-	}
-}
-
-template<class T>
-template<typename Q>
-inline typename std::enable_if<!QUaHasMethodBrowseChildren<Q>::value, bool>::type
-QUaNodeModel<T>::QUaNodeWrapper::bindChildren()
-{
-	return false;
 }
 
 #endif // QUANODEMODEL_H

@@ -1,9 +1,7 @@
 #include "quatreemodel.h"
 
-#include <QUaNode>
-
 QUaTreeModel::QUaTreeModel(QObject *parent)
-    : QUaNodeModel(parent)
+    : QUaModel(parent)
 {
 }
 
@@ -24,10 +22,10 @@ QUaNode* QUaTreeModel::rootNode() const
 
 void QUaTreeModel::setRootNode(QUaNode* rootNode/* = nullptr*/)
 {
-    this->bindRoot(rootNode ? new QUaNodeModel<QUaNode>::QUaNodeWrapper(rootNode) : nullptr);
+    this->bindRoot(rootNode ? new QUaModel<QUaNode*>::QUaNodeWrapper(rootNode) : nullptr);
 }
 
-void QUaTreeModel::bindRoot(QUaNodeModel<QUaNode>::QUaNodeWrapper* root)
+void QUaTreeModel::bindRoot(QUaModel<QUaNode*>::QUaNodeWrapper* root)
 {
     if (m_root == root)
     {
@@ -54,7 +52,7 @@ void QUaTreeModel::bindRoot(QUaNodeModel<QUaNode>::QUaNodeWrapper* root)
 }
 
 
-void QUaTreeModel::bindRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapper)
+void QUaTreeModel::bindRecursivelly(QUaModel<QUaNode*>::QUaNodeWrapper* wrapper)
 {
     // subscribe to node removed
     // unbind tree must run inmediatly
@@ -99,7 +97,7 @@ void QUaTreeModel::bindRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapp
         // notify views that row will be added
         this->beginInsertRows(index, row, row);
         // create new wrapper
-        auto* childWrapper = new QUaNodeModel<QUaNode>::QUaNodeWrapper(childNode, wrapper);
+        auto* childWrapper = new QUaModel<QUaNode*>::QUaNodeWrapper(childNode, wrapper);
         // apprend to parent's children list
         wrapper->children() << childWrapper;
         // bind new instance for changes
@@ -122,7 +120,7 @@ void QUaTreeModel::bindRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapp
     }
 }
 
-void QUaTreeModel::unbindNodeRecursivelly(QUaNodeModel<QUaNode>::QUaNodeWrapper* wrapper)
+void QUaTreeModel::unbindNodeRecursivelly(QUaModel<QUaNode*>::QUaNodeWrapper* wrapper)
 {
     Q_CHECK_PTR(wrapper);
     // disconnect from internal node

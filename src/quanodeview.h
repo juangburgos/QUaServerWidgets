@@ -3,7 +3,7 @@
 
 #include <QStyledItemDelegate>
 #include <QSortFilterProxyModel>
-#include <QUaNodeModel>
+#include <QUaModel>
 
 class QUaNode;
 
@@ -36,7 +36,7 @@ public:
 protected:
 	T* m_thiz;
 	// copy to avoid dynamic-casting all the time
-	QUaNodeModel<QUaNode>* m_model;
+	QUaModel<QUaNode*>* m_model;
 	QSortFilterProxyModel* m_proxy;
 	// internal editor callbacks
 	struct ColumnEditor
@@ -86,20 +86,20 @@ template<class T>
 template<class B>
 inline void QUaNodeView<T>::setModel(QAbstractItemModel* model)
 {
-	auto nodeModel = dynamic_cast<QUaNodeModel<QUaNode>*>(model);
+	auto nodeModel = dynamic_cast<QUaModel<QUaNode*>*>(model);
 	if (!nodeModel)
 	{
 		m_proxy = dynamic_cast<QSortFilterProxyModel*>(model);
 		if (m_proxy)
 		{
-			nodeModel = dynamic_cast<QUaNodeModel<QUaNode>*>(m_proxy->sourceModel());
+			nodeModel = dynamic_cast<QUaModel<QUaNode*>*>(m_proxy->sourceModel());
 		}
 	}
 	else
 	{
 		m_proxy = nullptr;
 	}
-	Q_ASSERT_X(nodeModel, "setModel", "QUaView only supports QUaNodeModel models");
+	Q_ASSERT_X(nodeModel, "setModel", "QUaView only supports QUaModel models");
 	if (!nodeModel)
 	{
 		return;
@@ -115,7 +115,7 @@ inline void QUaNodeView<T>::dataChanged(
 	const QModelIndex& bottomRight,
 	const QVector<int>& roles)
 {
-	// NOTE : QUaNodeModel always emits dataChanged with (topLeft == bottomRight)
+	// NOTE : QUaModel always emits dataChanged with (topLeft == bottomRight)
 	Q_ASSERT(topLeft == bottomRight);
 	// getting visual rect is expensive but less than QTreeView::dataChanged
 	QRect rect = m_thiz->visualRect(topLeft);
