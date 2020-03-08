@@ -4,9 +4,11 @@
 #include <QDialog>
 
 #include <QUaServer>
-#include <QUaLogModel>
-#include <QUaSessionModel>
+#include <QUaTableModel>
 #include <QSortFilterProxyModel>
+
+typedef QUaTableModel<QUaLog> QUaLogModel;
+typedef QUaTableModel<const QUaSession*> QUaSessionModel;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }

@@ -5,13 +5,11 @@ FORMS += \
 
 
 HEADERS += \
-    $$PWD/qualogmodel.h \
     $$PWD/quamodel.h \
     $$PWD/quanodetableview.h \
     $$PWD/quanodetreeview.h \
     $$PWD/quanodeview.h \
     $$PWD/quaserverwidget.h \
-    $$PWD/quasessionmodel.h \
     $$PWD/quatablemodel.h \
     $$PWD/quatreemodel.h \
     $$PWD/quatypemodel.h \
@@ -22,6 +20,5 @@ SOURCES += \
     $$PWD/quanodetableview.cpp \
     $$PWD/quanodetreeview.cpp \
     $$PWD/quaserverwidget.cpp \
-    $$PWD/quatreemodel.cpp \
     $$PWD/quatypemodel.cpp
 
