@@ -162,6 +162,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         auto newVar = obj->addBaseDataVariable(QString("ns=1;s=%1").arg(strName));
         newVar->setBrowseName(strName);
         newVar->setDisplayName(strName);
+        newVar->setWriteAccess(true);
         return QString("Success : %1 created.").arg(strName);
     });
     if (isObjsFolder)

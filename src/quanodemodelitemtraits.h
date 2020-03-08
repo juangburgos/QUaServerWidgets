@@ -18,9 +18,24 @@ inline QMetaObject::Connection DestroyCallbackTrait(QUaNode* node, std::function
     });
 }
 
-inline QList<QUaNode*> GetChildrenTrait(QUaNode* node)
+inline QList<QUaNode*> GetChildrenTrait(const QUaNode* node)
 {
     return node->browseChildren();
+}
+
+inline bool IsValidTrait(const QUaNode* node)
+{
+    return node;
+}
+
+inline QUaNode* GetInvalidTrait()
+{
+    return nullptr;
+}
+
+inline bool IsEqualTrait(const QUaNode* node1, const QUaNode* node2)
+{
+    return node1 == node2;
 }
 
 #endif // QUANODEMODELITEMTRAITS_H

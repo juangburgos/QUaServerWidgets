@@ -1,6 +1,6 @@
 # TODO
 
-* Add traits to avoid having to add special methods to classes (e.g. QUaLog)
+* Find way to make each individual QUaModelItemTraits optional instead of having to implement all
 
 * Abstract views the same way models have been abstracted.
 

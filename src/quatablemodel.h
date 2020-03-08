@@ -26,7 +26,11 @@ template<class T>
 inline QUaTableModel<T>::QUaTableModel(QObject* parent) :
 	QUaModel<T>(parent)
 {
-    m_root = new QUaModel<T>::QUaNodeWrapper(nullptr);
+    //m_root = new QUaModel<T>::QUaNodeWrapper(T(nullptr));
+	m_root = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
+		new QUaModel<T>::QUaNodeWrapper(
+			QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::GetInvalid<T>()
+		);
 }
 
 template<class T>

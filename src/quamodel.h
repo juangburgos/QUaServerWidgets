@@ -324,7 +324,8 @@ inline QVariant QUaModel<T>::data(const QModelIndex& index, int role) const
 	// get internal reference
 	auto wrapper = static_cast<QUaModel<T>::QUaNodeWrapper*>(index.internalPointer());
 	// check internal wrapper data is valid, because wrapper->node() is always deleted before wrapper
-	if (!wrapper->node())
+	//if (!wrapper->node())
+	if(!QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsValid<T>(wrapper->node()))
 	{
 		return QVariant();
 	}
@@ -360,7 +361,8 @@ inline Qt::ItemFlags QUaModel<T>::flags(const QModelIndex& index) const
 	}
 	// test node valid
 	auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
-	if (!wrapper->node())
+	//if (!wrapper->node())
+	if(!QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsValid<T>(wrapper->node()))
 	{
 		return flags;
 	}
@@ -374,10 +376,15 @@ inline Qt::ItemFlags QUaModel<T>::flags(const QModelIndex& index) const
 }
 
 template<class T>
-inline void QUaModel<T>::bindChangeCallbackForColumn(const int& column, QUaNodeWrapper* wrapper, const bool& recursive)
+inline void QUaModel<T>::bindChangeCallbackForColumn(
+	const int& column, 
+	QUaNodeWrapper* wrapper, 
+	const bool& recursive
+)
 {
 	Q_CHECK_PTR(wrapper);
-	if (wrapper->node() && m_mapDataSourceFuncs[column].m_changeCallback)
+	if (QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsValid<T>(wrapper->node()) &&
+		m_mapDataSourceFuncs[column].m_changeCallback)
 	{
 		// pass in callback that user needs to call when a value is udpated
 		// store connection in wrapper so can be disconnected when wrapper deleted
@@ -400,7 +407,10 @@ inline void QUaModel<T>::bindChangeCallbackForColumn(const int& column, QUaNodeW
 }
 
 template<class T>
-inline void QUaModel<T>::bindChangeCallbackForAllColumns(QUaNodeWrapper* wrapper, const bool& recursive)
+inline void QUaModel<T>::bindChangeCallbackForAllColumns(
+	QUaNodeWrapper* wrapper, 
+	const bool& recursive
+)
 {
 	if (!m_mapDataSourceFuncs.isEmpty())
 	{
@@ -420,17 +430,24 @@ inline QUaModel<T>::QUaNodeWrapper::QUaNodeWrapper(
 	m_parent(parent)
 {
 	// m_node = null only supported if this is root (i.e. m_parent = null)
-	Q_ASSERT_X(m_node ? true : !m_parent, "QUaNodeWrapper", "Invalid node argument");
+	//Q_ASSERT_X(m_node ? true : !m_parent, "QUaNodeWrapper", "Invalid node argument");
+	Q_ASSERT_X(QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsValid<T>(m_node) ? 
+		true : 
+		!m_parent, 
+		"QUaNodeWrapper", "Invalid node argument"
+	);
 	// nothing else to do if root
-	if (!m_node)
+	if (!QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsValid<T>(m_node))
 	{
 		return;
 	}
 	// subscribe to node destruction, store connection to disconnect on destructor
 	QMetaObject::Connection conn = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
-		QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::DestroyCallback<T>(m_node, (std::function<void(void)>)
-			[this]() {
-				this->m_node = nullptr;
+		QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::DestroyCallback<T>(
+			m_node, 
+			(std::function<void(void)>)[this]() {
+				this->m_node = 
+					QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::GetInvalid<T>();
 			}
 		);
 	if (conn)
@@ -480,35 +497,45 @@ inline void QUaModel<T>::QUaNodeWrapper::setIndex(const QModelIndex& index)
 }
 
 template<class T>
-inline typename QUaModel<T>::QUaNodeWrapper* QUaModel<T>::QUaNodeWrapper::parent() const
+inline typename QUaModel<T>::QUaNodeWrapper* 
+	QUaModel<T>::QUaNodeWrapper::parent() const
 {
 	return m_parent;
 }
 
 template<class T>
-inline typename QUaModel<T>::QUaNodeWrapper * QUaModel<T>::QUaNodeWrapper::childByNode(T node) const
+inline typename QUaModel<T>::QUaNodeWrapper * 
+	QUaModel<T>::QUaNodeWrapper::childByNode(T node) const
 {
 	auto res = std::find_if(m_children.begin(), m_children.end(),
 	[node](QUaModel<T>::QUaNodeWrapper* wrapper) {
-		return wrapper->m_node == node;
+		return QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::IsEqual<T>(
+			wrapper->m_node, node
+		);
 	});
 	return res == m_children.end() ? nullptr : *res;
 }
 
 template<class T>
-inline QList<typename QUaModel<T>::QUaNodeWrapper*>& QUaModel<T>::QUaNodeWrapper::children()
+inline QList<typename QUaModel<T>::QUaNodeWrapper*>& 
+	QUaModel<T>::QUaNodeWrapper::children()
 {
 	return m_children;
 }
 
 template<class T>
-inline QList<QMetaObject::Connection>& QUaModel<T>::QUaNodeWrapper::connections()
+inline QList<QMetaObject::Connection>& 
+	QUaModel<T>::QUaNodeWrapper::connections()
 {
 	return m_connections;
 }
 
 template<class T>
-inline std::function<void()> QUaModel<T>::QUaNodeWrapper::getChangeCallbackForColumn(const int& column, QAbstractItemModel* model)
+inline std::function<void()> 
+	QUaModel<T>::QUaNodeWrapper::getChangeCallbackForColumn(
+		const int& column, 
+		QAbstractItemModel* model
+	)
 {
 	return [this, column, model]()
 	{
