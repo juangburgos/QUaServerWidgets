@@ -6,35 +6,17 @@
 #include <QUaTableModel>
 #include <QSortFilterProxyModel>
 
-// activate specialized implementation for QUaLog
 template<>
-struct QUaHasModelItemTraits<QUaLog> {
-    static const bool value = true;
-};
-
-inline QMetaObject::Connection DestroyCallbackTrait(
-    QUaLog &node, 
-    std::function<void(void)> callback
-)
-{
-    Q_UNUSED(node);
-    Q_UNUSED(callback);
-    return QMetaObject::Connection();
-}
-
-inline QList<QUaLog> GetChildrenTrait(const QUaLog &node)
-{
-    Q_UNUSED(node);
-    return QList<QUaLog>();
-}
-
-inline bool IsValidTrait(const QUaLog &node)
+inline bool 
+QUaModelItemTraits::IsValid<QUaLog>(const QUaLog &node)
 {
     // valid if not null
     return !node.message.isNull();
 }
 
-inline QUaLog GetInvalidTrait()
+template<>
+inline QUaLog 
+QUaModelItemTraits::GetInvalid<QUaLog>()
 {
     return QUaLog({
         QByteArray(), // null message
@@ -43,7 +25,9 @@ inline QUaLog GetInvalidTrait()
     });
 }
 
-inline bool IsEqualTrait(const QUaLog& node1, const QUaLog& node2)
+template<>
+inline bool 
+QUaModelItemTraits::IsEqual<QUaLog>(const QUaLog& node1, const QUaLog& node2)
 {
     return 
         node1.message   == node2.message  &&

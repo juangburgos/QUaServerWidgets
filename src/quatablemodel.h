@@ -26,10 +26,8 @@ template<class T>
 inline QUaTableModel<T>::QUaTableModel(QObject* parent) :
 	QUaModel<T>(parent)
 {
-    //m_root = new QUaModel<T>::QUaNodeWrapper(T(nullptr));
-	m_root = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
-		new QUaModel<T>::QUaNodeWrapper(
-			QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::GetInvalid<T>()
+	m_root = new QUaModel<T>::QUaNodeWrapper(
+			QUaModelItemTraits::GetInvalid<T>()
 		);
 }
 
@@ -68,14 +66,13 @@ inline void QUaTableModel<T>::addNode(T node)
 	this->bindChangeCallbackForAllColumns(wrapper, false);
 	// subscribe to instance removed
 	// remove rows better be queued in the event loop
-	QMetaObject::Connection conn = /*QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::template*/
-		QUaModelItemTraits<QUaHasModelItemTraits<T>::value>::DestroyCallback<T>(node, (std::function<void(void)>)
-			[this, wrapper]() {
-				Q_CHECK_PTR(wrapper);
-				Q_ASSERT(m_root);
-				// remove
-				this->removeWrapper(wrapper);
-			}
+	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<T>(node, 
+		(std::function<void(void)>)[this, wrapper]() {
+			Q_CHECK_PTR(wrapper);
+			Q_ASSERT(m_root);
+			// remove
+			this->removeWrapper(wrapper);
+		}
 	);
 	if (conn)
 	{

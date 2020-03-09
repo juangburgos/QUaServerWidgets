@@ -10,6 +10,8 @@
 
 #include <QUaNodeModelItemTraits>
 
+typedef QUaTreeModel<QUaNode*> QUaNodeTreeModel;
+
 class QUaBaseObjectExt;
 
 QT_BEGIN_NAMESPACE
@@ -35,7 +37,7 @@ private:
     void setupQUaPropertyMenu        (QMenu& menu, QUaProperty         *prop   );
 
     QUaServer m_server;
-    QUaTreeModel<QUaNode*> m_model;
+    QUaNodeTreeModel m_model;
     QSortFilterProxyModel m_proxy;
 };
 #endif // DIALOG_H
