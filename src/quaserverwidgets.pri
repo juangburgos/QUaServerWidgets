@@ -15,8 +15,6 @@ HEADERS += \
     $$PWD/quaview.h \
     $$PWD/quatableview.h \
     $$PWD/quatreeview.h \
-    $$PWD/quanodetableview.h \
-    $$PWD/quanodetreeview.h
 
 SOURCES += \
     $$PWD/quaserverwidget.cpp \

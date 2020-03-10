@@ -3,6 +3,8 @@
 
 #include <QStyledItemDelegate>
 #include <QSortFilterProxyModel>
+#include <QClipboard>
+#include <QMimeData>
 #include <QUaModel>
 
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism
@@ -23,6 +25,23 @@ public:
 	);
 	void removeColumnEditor(const int& column);
 
+	// signature : void(QList<N>&)
+	template <typename M>
+	void setDeleteCallback(const M& deleteCallback);
+	void clearDeleteCallback();
+
+	// signature : QMimeData*(const QList<N>&)
+	template <typename M>
+	void setCopyCallback(const M& copyCallback);
+	void clearCopyCallback();
+
+	// signature : void(const QList<N>&, const QMimeData*)
+	template <typename M>
+	void setPasteCallback(const M& pasteCallback);
+	void clearPasteCallback();
+
+	// Inheirted class - Qt API:
+
 	// overwrite to ignore some calls to improve performance
 	template <class B>
 	void dataChanged(
@@ -30,6 +49,10 @@ public:
 		const QModelIndex& bottomRight,
 		const QVector<int>& roles = QVector<int>()
 	);
+
+	// overwrite to handle keyboard events
+	template <class B>
+	void keyPressEvent(QKeyEvent* event);
 
 protected:
 	T* m_thiz;
@@ -44,6 +67,12 @@ protected:
 		std::function<void(QWidget*, N)>     m_updateDataCallback;
 	};
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
+	// internal keyboard events callbacks
+	std::function<void(QList<N>&)> m_funcHandleDelete;
+	std::function<QMimeData*(const QList<N>&)> m_funcHandleCopy;
+	std::function<void(const QList<N>&, const QMimeData*)> m_funcHandlePaste;
+
+	QList<N> nodesFromIndexes(const QModelIndexList& indexes) const;
 
 	// internal delegate
 	class QUaItemDelegate : public QStyledItemDelegate
@@ -78,6 +107,8 @@ inline QUaView<T, N>::QUaView()
 	m_thiz  = static_cast<T*>(this);
 	m_thiz->setItemDelegate(new QUaView<T, N>::QUaItemDelegate(m_thiz));
 	m_thiz->setAlternatingRowColors(true);
+	m_funcHandleCopy  = nullptr;
+	m_funcHandlePaste = nullptr;
 }
 
 template<typename T, typename N>
@@ -107,6 +138,51 @@ inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 }
 
 template<typename T, typename N>
+template<typename M>
+inline void QUaView<T, N>::setDeleteCallback(const M& deleteCallback)
+{
+	m_funcHandleDelete = [deleteCallback](QList<N>& nodes) {
+		return deleteCallback(nodes);
+	};
+}
+
+template<typename T, typename N>
+inline void QUaView<T, N>::clearDeleteCallback()
+{
+	m_funcHandleDelete = nullptr;
+}
+
+template<typename T, typename N>
+template<typename M>
+inline void QUaView<T, N>::setCopyCallback(const M& copyCallback)
+{
+	m_funcHandleCopy = [copyCallback](const QList<N>& nodes) {
+		return copyCallback(nodes);
+	};
+}
+
+template<typename T, typename N>
+inline void QUaView<T, N>::clearCopyCallback()
+{
+	m_funcHandleCopy = nullptr;
+}
+
+template<typename T, typename N>
+template<typename M>
+inline void QUaView<T, N>::setPasteCallback(const M& pasteCallback)
+{
+	m_funcHandlePaste = [pasteCallback](const QList<N>& nodes, const QMimeData* mime) {
+		return pasteCallback(nodes, mime);
+	};
+}
+
+template<typename T, typename N>
+inline void QUaView<T, N>::clearPasteCallback()
+{
+	m_funcHandlePaste = nullptr;
+}
+
+template<typename T, typename N>
 template<class B>
 inline void QUaView<T, N>::dataChanged(
 	const QModelIndex& topLeft,
@@ -124,6 +200,68 @@ inline void QUaView<T, N>::dataChanged(
 	}
 	// data update is expensive
 	m_thiz->B::dataChanged(topLeft, bottomRight, roles);
+}
+
+template<typename T, typename N>
+template<class B>
+inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
+{
+	auto indexes = m_thiz->selectedIndexes();
+	if (indexes.isEmpty())
+	{
+		// call base class method
+		m_thiz->B::keyPressEvent(event);
+		return;
+	}
+	// check if dlete
+	if (event->key() == Qt::Key_Delete)
+	{
+		if (!m_funcHandleDelete)
+		{
+			// call base class method
+			m_thiz->B::keyPressEvent(event);
+			return;
+		}
+		QList<N> nodes = this->nodesFromIndexes(indexes);
+		// call delete callback and exit
+		m_funcHandleDelete(nodes);
+		return;
+	}
+	// check if copy
+	if (event->matches(QKeySequence::Copy))
+	{
+		if (!m_funcHandleCopy)
+		{
+			// call base class method
+			m_thiz->B::keyPressEvent(event);
+			return;
+		}
+		QList<N> nodes = this->nodesFromIndexes(indexes);
+		// call copy callback and exit
+		auto mime = m_funcHandleCopy(nodes);
+		if (mime)
+		{
+			QApplication::clipboard()->setMimeData(mime);
+		}
+		return;
+	}
+	// check if paste
+	if (event->matches(QKeySequence::Paste))
+	{
+		if (!m_funcHandlePaste)
+		{
+			// call base class method
+			m_thiz->B::keyPressEvent(event);
+			return;
+		}
+		QList<N> nodes = this->nodesFromIndexes(indexes);
+		// call paste callback and exit
+		m_funcHandlePaste(nodes, QApplication::clipboard()->mimeData());
+		return;
+	}
+	// call base class method
+	m_thiz->B::keyPressEvent(event);
+	return;
 }
 
 template<typename T, typename N>
@@ -152,6 +290,25 @@ inline void QUaView<T, N>::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
 }
+
+template<typename T, typename N>
+inline QList<N> QUaView<T, N>::nodesFromIndexes(const QModelIndexList &indexes) const
+{
+	QList<N> nodes;
+	for (auto index : indexes)
+	{
+		index = m_proxy ? m_proxy->mapToSource(index) : index;
+		auto node = m_model->nodeFromIndex(index);
+		if (nodes.contains(node))
+		{
+			continue;
+		}
+		nodes << node;
+	}
+	return nodes;
+}
+
+
 
 template<typename T, typename N>
 inline QUaView<T, N>::QUaItemDelegate::QUaItemDelegate(QObject* parent)

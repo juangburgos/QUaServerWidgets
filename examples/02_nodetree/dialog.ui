@@ -23,7 +23,7 @@
   <customwidget>
    <class>QUaNodeTreeView</class>
    <extends>QTreeView</extends>
-   <header location="global">QUaNodeTreeView</header>
+   <header>dialog.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

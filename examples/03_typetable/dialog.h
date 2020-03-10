@@ -7,6 +7,9 @@
 #include <QUaServer>
 #include <QUaTypeModel>
 #include <QSortFilterProxyModel>
+#include <QUaTableView>
+
+typedef QUaTableView<QUaNode*> QUaNodeTableView;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }

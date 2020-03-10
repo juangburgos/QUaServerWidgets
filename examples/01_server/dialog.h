@@ -5,6 +5,7 @@
 #include <QUaServer>
 #include <QUaTableModel>
 #include <QSortFilterProxyModel>
+#include <QUaTableView>
 
 template<>
 inline bool 
@@ -38,6 +39,13 @@ QUaModelItemTraits::IsEqual<QUaLog>(const QUaLog& node1, const QUaLog& node2)
 
 typedef QUaTableModel<QUaLog> QUaLogModel;
 typedef QUaTableModel<const QUaSession*> QUaSessionModel;
+
+inline bool operator==(const QUaLog& node1, const QUaLog& node2)
+{
+    return QUaModelItemTraits::IsEqual<QUaLog>(node1, node2);
+}
+
+typedef QUaTableView<QUaLog> QUaLogTableView;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }

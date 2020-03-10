@@ -10,6 +10,7 @@ class QUaTreeView : public QTreeView, public QUaView<QUaTreeView<N>, N>
     // to be able to access base class QTreeView protected members
     friend class QUaView<QUaTreeView, N>;
 public:
+
     explicit QUaTreeView(QWidget *parent = nullptr);
 
     void setModel(QAbstractItemModel* model) override;
@@ -22,6 +23,10 @@ public:
 		const QModelIndex& bottomRight, 
 		const QVector<int>& roles = QVector<int>()
 	) override;
+
+	// overwrite to handle keyboard events
+	void keyPressEvent(QKeyEvent* event) override;
+	
 };
 
 template<typename N>
@@ -51,4 +56,12 @@ inline void QUaTreeView<N>::dataChanged(
 		::dataChanged<QTreeView>(topLeft, bottomRight, roles);
 }
 
+template<typename N>
+inline void QUaTreeView<N>::keyPressEvent(QKeyEvent* event)
+{
+	QUaView<QUaTreeView, N>
+		::keyPressEvent<QTreeView>(event);
+}
+
 #endif // QUATREEVIEW_H
+

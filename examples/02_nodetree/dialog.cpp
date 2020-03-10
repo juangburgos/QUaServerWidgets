@@ -239,6 +239,32 @@ void Dialog::setupTree()
         var->setValue(sbox->value());
     });
 
+    // support copy-paste
+    ui->treeView->setCopyCallback(
+    [](const QList<QUaNode*> &nodes) {
+        auto mime = new QMimeData();
+        qDebug() << "copy callback";
+        for (auto node : nodes)
+        {
+            qDebug() << "copy" << node->nodeId();
+            mime->setText(
+                mime->text().isEmpty() ?
+                node->nodeId() :
+                mime->text() + ", " + node->nodeId()
+            );
+        }
+        return mime;
+    });
+    ui->treeView->setPasteCallback(
+    [](const QList<QUaNode*> &nodes, const QMimeData* mime) {
+        qDebug() << "paste callback :" 
+                 << (mime ? mime->text() : "no data");
+        for (auto node : nodes)
+        {
+            qDebug() << "paste target" << node->nodeId();
+        }
+    });
+
     // allow sorting
     m_proxy.setSourceModel(&m_model);
     ui->treeView->setModel(&m_proxy);

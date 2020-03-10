@@ -6,11 +6,13 @@
 
 #include <QUaServer>
 #include <QUaTreeModel>
+#include <QUaTreeView>
 #include <QSortFilterProxyModel>
 
 #include <QUaNodeModelItemTraits>
 
 typedef QUaTreeModel<QUaNode*> QUaNodeTreeModel;
+typedef QUaTreeView <QUaNode*> QUaNodeTreeView;
 
 class QUaBaseObjectExt;
 

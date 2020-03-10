@@ -101,6 +101,31 @@ void Dialog::setupLogTable()
     [](QUaLog log) {
         return log.message;
     }/* other callbacks for data that changes or editable */);
+
+    // support delete and copy
+    ui->tableViewLogs->setDeleteCallback(
+    [this](QList<QUaLog> &logs) {
+        while (logs.count() > 0)
+        {
+            m_modelLog.removeNode(logs.takeFirst());
+        }
+    });
+    ui->tableViewLogs->setCopyCallback(
+    [](const QList<QUaLog> &logs) {
+        auto mime = new QMimeData();
+        for (auto log : logs)
+        {
+            mime->setText(
+                mime->text() + QString("[%1] [%2] [%3] : %4.\n")
+                .arg(log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
+                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
+                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log.category)))
+                .arg(QString(log.message))
+            );
+        }
+        return mime;
+    });
+
     // allow sorting
     m_proxyLog.setSourceModel(&m_modelLog);
     ui->tableViewLogs->setModel(&m_proxyLog);
@@ -143,6 +168,7 @@ void Dialog::setupSessionTable()
     [](const QUaSession* session) {
         return session->userName();
     }/* other callbacks for data that changes or editable */);
+
     // allow sorting
     m_proxySession.setSourceModel(&m_modelSession);
     ui->tableViewSessions->setModel(&m_proxySession);

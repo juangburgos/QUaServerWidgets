@@ -23,7 +23,7 @@
   <customwidget>
    <class>QUaNodeTableView</class>
    <extends>QTableView</extends>
-   <header location="global">QUaNodeTableView</header>
+   <header>dialog.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
