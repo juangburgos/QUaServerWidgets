@@ -1,27 +1,25 @@
-#ifndef QUANODEVIEW_H
-#define QUANODEVIEW_H
+#ifndef QUAVIEW_H
+#define QUAVIEW_H
 
 #include <QStyledItemDelegate>
 #include <QSortFilterProxyModel>
 #include <QUaModel>
 
-class QUaNode;
-
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism
-template <class T>
-class QUaNodeView
+template <typename T, typename N>
+class QUaView
 {
 public:
-	explicit QUaNodeView();
+	explicit QUaView();
 
 	template <class B>
 	void setModel(QAbstractItemModel* model);
 
 	void setColumnEditor(
 		const int& column,
-		std::function<QWidget * (QWidget*, QUaNode*)> initEditorCallback,
-		std::function<void(QWidget*, QUaNode*)> updateEditorCallback,
-		std::function<void(QWidget*, QUaNode*)> updateDataCallback
+		std::function<QWidget*(QWidget*, N)> initEditorCallback,
+		std::function<void(QWidget*, N)> updateEditorCallback,
+		std::function<void(QWidget*, N)> updateDataCallback
 	);
 	void removeColumnEditor(const int& column);
 
@@ -36,23 +34,23 @@ public:
 protected:
 	T* m_thiz;
 	// copy to avoid dynamic-casting all the time
-	QUaModel<QUaNode*>* m_model;
+	QUaModel<N>* m_model;
 	QSortFilterProxyModel* m_proxy;
 	// internal editor callbacks
 	struct ColumnEditor
 	{
-		std::function<QWidget * (QWidget*, QUaNode*)> m_initEditorCallback;
-		std::function<void(QWidget*, QUaNode*)>       m_updateEditorCallback;
-		std::function<void(QWidget*, QUaNode*)>       m_updateDataCallback;
+		std::function<QWidget*(QWidget*, N)> m_initEditorCallback;
+		std::function<void(QWidget*, N)>     m_updateEditorCallback;
+		std::function<void(QWidget*, N)>     m_updateDataCallback;
 	};
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
 
 	// internal delegate
-	class QUaNodeDelegate : public QStyledItemDelegate
+	class QUaItemDelegate : public QStyledItemDelegate
 	{
 		//Q_OBJECT : NOTE : Qt do not support this on nested classes
 	public:
-		explicit QUaNodeDelegate(QObject* parent = 0);
+		explicit QUaItemDelegate(QObject* parent = 0);
 
 		// editor factory and intial setup
 		QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
@@ -60,39 +58,39 @@ protected:
 		// populate editor and update editor if value changes while editing
 		void setEditorData(QWidget* editor, const QModelIndex& index) const override;
 
-		// update undelying data source (QUaNode) when editor finishes editing
+		// update undelying data source (<N>) when editor finishes editing
 		void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override;
 
 		//// fix editor size and location inside view
 		//void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 
-		QUaNodeView* m_view;
+		QUaView* m_view;
 	};
-	friend class QUaNodeView::QUaNodeDelegate;
+	friend class QUaView::QUaItemDelegate;
 };
 
 
-template<class T>
-inline QUaNodeView<T>::QUaNodeView()
+template<typename T, typename N>
+inline QUaView<T, N>::QUaView()
 {
 	m_model = nullptr;
 	m_proxy = nullptr;
-	m_thiz = static_cast<T*>(this);
-	m_thiz->setItemDelegate(new QUaNodeView<T>::QUaNodeDelegate(m_thiz));
+	m_thiz  = static_cast<T*>(this);
+	m_thiz->setItemDelegate(new QUaView<T, N>::QUaItemDelegate(m_thiz));
 	m_thiz->setAlternatingRowColors(true);
 }
 
-template<class T>
+template<typename T, typename N>
 template<class B>
-inline void QUaNodeView<T>::setModel(QAbstractItemModel* model)
+inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 {
-	auto nodeModel = dynamic_cast<QUaModel<QUaNode*>*>(model);
+	auto nodeModel = dynamic_cast<QUaModel<N>*>(model);
 	if (!nodeModel)
 	{
 		m_proxy = dynamic_cast<QSortFilterProxyModel*>(model);
 		if (m_proxy)
 		{
-			nodeModel = dynamic_cast<QUaModel<QUaNode*>*>(m_proxy->sourceModel());
+			nodeModel = dynamic_cast<QUaModel<N>*>(m_proxy->sourceModel());
 		}
 	}
 	else
@@ -108,9 +106,9 @@ inline void QUaNodeView<T>::setModel(QAbstractItemModel* model)
 	m_thiz->B::setModel(model);
 }
 
-template<class T>
+template<typename T, typename N>
 template<class B>
-inline void QUaNodeView<T>::dataChanged(
+inline void QUaView<T, N>::dataChanged(
 	const QModelIndex& topLeft,
 	const QModelIndex& bottomRight,
 	const QVector<int>& roles)
@@ -128,12 +126,12 @@ inline void QUaNodeView<T>::dataChanged(
 	m_thiz->B::dataChanged(topLeft, bottomRight, roles);
 }
 
-template<class T>
-inline void QUaNodeView<T>::setColumnEditor(
+template<typename T, typename N>
+inline void QUaView<T, N>::setColumnEditor(
 	const int& column,
-	std::function<QWidget * (QWidget*, QUaNode*)> initEditorCallback,
-	std::function<void(QWidget*, QUaNode*)> updateEditorCallback,
-	std::function<void(QWidget*, QUaNode*)> updateDataCallback)
+	std::function<QWidget * (QWidget*, N)> initEditorCallback,
+	std::function<void(QWidget*, N)> updateEditorCallback,
+	std::function<void(QWidget*, N)> updateDataCallback)
 {
 	Q_ASSERT(column >= 0);
 	if (column < 0)
@@ -149,23 +147,23 @@ inline void QUaNodeView<T>::setColumnEditor(
 	);
 }
 
-template<class T>
-inline void QUaNodeView<T>::removeColumnEditor(const int& column)
+template<typename T, typename N>
+inline void QUaView<T, N>::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
 }
 
-template<class T>
-inline QUaNodeView<T>::QUaNodeDelegate::QUaNodeDelegate(QObject* parent)
+template<typename T, typename N>
+inline QUaView<T, N>::QUaItemDelegate::QUaItemDelegate(QObject* parent)
 	: QStyledItemDelegate(parent)
 {
 	auto view = static_cast<T*>(parent);
-	Q_ASSERT_X(view, "QUaNodeDelegate", "Parent must be a T instance");
+	Q_ASSERT_X(view, "QUaItemDelegate", "Parent must be a T instance");
 	m_view = view;
 }
 
-template<class T>
-inline QWidget* QUaNodeView<T>::QUaNodeDelegate::createEditor(
+template<typename T, typename N>
+inline QWidget* QUaView<T, N>::QUaItemDelegate::createEditor(
 	QWidget* parent,
 	const QStyleOptionViewItem& option,
 	const QModelIndex& const_index
@@ -177,12 +175,12 @@ inline QWidget* QUaNodeView<T>::QUaNodeDelegate::createEditor(
 	{
 		return QStyledItemDelegate::createEditor(parent, option, index);
 	}
-	QUaNode* node = m_view->m_model->nodeFromIndex(index);
+	N node = m_view->m_model->nodeFromIndex(index);
 	return m_view->m_mapEditorFuncs[index.column()].m_initEditorCallback(parent, node);
 }
 
-template<class T>
-inline void QUaNodeView<T>::QUaNodeDelegate::setEditorData(
+template<typename T, typename N>
+inline void QUaView<T, N>::QUaItemDelegate::setEditorData(
 	QWidget* editor,
 	const QModelIndex& const_index
 ) const
@@ -193,12 +191,12 @@ inline void QUaNodeView<T>::QUaNodeDelegate::setEditorData(
 	{
 		return QStyledItemDelegate::setEditorData(editor, index);
 	}
-	QUaNode* node = m_view->m_model->nodeFromIndex(index);
+	N node = m_view->m_model->nodeFromIndex(index);
 	return m_view->m_mapEditorFuncs[index.column()].m_updateEditorCallback(editor, node);
 }
 
-template<class T>
-inline void QUaNodeView<T>::QUaNodeDelegate::setModelData(
+template<typename T, typename N>
+inline void QUaView<T, N>::QUaItemDelegate::setModelData(
 	QWidget* editor,
 	QAbstractItemModel* model,
 	const QModelIndex& const_index
@@ -210,8 +208,8 @@ inline void QUaNodeView<T>::QUaNodeDelegate::setModelData(
 	{
 		return QStyledItemDelegate::setModelData(editor, model, index);
 	}
-	QUaNode* node = m_view->m_model->nodeFromIndex(index);
+	N node = m_view->m_model->nodeFromIndex(index);
 	return m_view->m_mapEditorFuncs[index.column()].m_updateDataCallback(editor, node);
 }
 
-#endif // QUANODEVIEW_H
+#endif // QUAVIEW_H

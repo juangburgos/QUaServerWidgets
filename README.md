@@ -1,5 +1,7 @@
 # QUaServerWidgets
 
+Generic widgets to view and edit instances of `QUaServer` types.
+
 ## Build
 
 ```bash

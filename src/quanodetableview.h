@@ -1,28 +1,9 @@
 #ifndef QUANODETABLEVIEW_H
 #define QUANODETABLEVIEW_H
 
-#include <QTableView>
-#include <QUaNodeView>
+#include <QUaTableView>
 
-class QUaNodeTableView : public QTableView, public QUaNodeView<QUaNodeTableView>
-{
-    Q_OBJECT
-    // to be able to access base class QTableView protected members
-    friend class QUaNodeView<QUaNodeTableView>;
-public:
-    explicit QUaNodeTableView(QWidget *parent = nullptr);
-
-    void setModel(QAbstractItemModel* model) override;
-
-    // Qt API:
-
-    // overwrite to ignore some calls to improve performance
-    void dataChanged(
-        const QModelIndex& topLeft,
-        const QModelIndex& bottomRight,
-        const QVector<int>& roles = QVector<int>()
-    ) override;
-
-};
+class QUaNode;
+typedef QUaTableView<QUaNode*> QUaNodeTableView;
 
 #endif // QUANODETABLEVIEW_H

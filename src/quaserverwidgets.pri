@@ -5,20 +5,20 @@ FORMS += \
 
 
 HEADERS += \
-    $$PWD/quamodel.h \
-    $$PWD/quanodetableview.h \
-    $$PWD/quanodetreeview.h \
-    $$PWD/quanodeview.h \
     $$PWD/quaserverwidget.h \
+    $$PWD/quamodel.h \
     $$PWD/quatablemodel.h \
     $$PWD/quatreemodel.h \
-    $$PWD/quatypemodel.h \
     $$PWD/quamodelitemtraits.h \
-    $$PWD/quanodemodelitemtraits.h
+    $$PWD/quanodemodelitemtraits.h \
+    $$PWD/quatypemodel.h \
+    $$PWD/quaview.h \
+    $$PWD/quatableview.h \
+    $$PWD/quatreeview.h \
+    $$PWD/quanodetableview.h \
+    $$PWD/quanodetreeview.h
 
 SOURCES += \
-    $$PWD/quanodetableview.cpp \
-    $$PWD/quanodetreeview.cpp \
     $$PWD/quaserverwidget.cpp \
     $$PWD/quatypemodel.cpp
 
