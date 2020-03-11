@@ -4,7 +4,7 @@
 #include <QAbstractItemModel>
 #include <QUaModelItemTraits>
 
-template <class T>
+template <typename T>
 class QUaModel : public QAbstractItemModel
 {
 
@@ -12,7 +12,13 @@ public:
     explicit QUaModel(QObject *parent = nullptr);
     ~QUaModel();
 
-    T nodeFromIndex(const QModelIndex& index) const;
+	template<typename X = T>
+	typename std::enable_if<std::is_pointer<X>::value, X>::type
+    nodeFromIndex(const QModelIndex& index) const;
+
+	template<typename X = T>
+	typename std::enable_if<!std::is_pointer<X>::value, X&>::type
+    nodeFromIndex(const QModelIndex& index);
 
     void setColumnDataSource(
         const int& column, 
@@ -34,6 +40,8 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
+	bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
+
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
 protected:
@@ -47,7 +55,13 @@ protected:
             const bool &recursive = true);
         ~QUaNodeWrapper();
 
-        T node() const;
+		template<typename X = T>
+		typename std::enable_if<std::is_pointer<X>::value, X>::type
+        node() const;
+
+		template<typename X = T>
+		typename std::enable_if<!std::is_pointer<X>::value, X&>::type
+		node();
 
         QModelIndex index() const;
         void setIndex(const QModelIndex &index);
@@ -118,8 +132,26 @@ inline QUaModel<T>::~QUaModel()
 	}
 }
 
-template<class T>
-inline T QUaModel<T>::nodeFromIndex(const QModelIndex& index) const
+template<typename T>
+template<typename X>
+inline
+typename std::enable_if<std::is_pointer<X>::value, X>::type
+QUaModel<T>::nodeFromIndex(const QModelIndex& index) const
+{
+	if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+	{
+		return m_root->node();
+	}
+	auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
+	Q_CHECK_PTR(wrapper);
+	return wrapper->node();
+}
+
+template<typename T>
+template<typename X>
+inline 
+typename std::enable_if<!std::is_pointer<X>::value, X&>::type 
+QUaModel<T>::nodeFromIndex(const QModelIndex& index)
 {
 	if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
 	{
@@ -345,6 +377,17 @@ inline QVariant QUaModel<T>::data(const QModelIndex& index, int role) const
 }
 
 template<class T>
+inline bool QUaModel<T>::setData(const QModelIndex& index, const QVariant& value, int role)
+{
+	bool ok = QUaModelItemTraits::SetData<T>(this->nodeFromIndex(index), index.column(), value);
+	if (ok)
+	{
+		emit this->dataChanged(index, index, QVector<int>() << role);
+	}
+	return ok;
+}
+
+template<class T>
 inline Qt::ItemFlags QUaModel<T>::flags(const QModelIndex& index) const
 {
 	if (!m_root || !index.isValid())
@@ -473,8 +516,20 @@ inline QUaModel<T>::QUaNodeWrapper::~QUaNodeWrapper()
 	qDeleteAll(m_children);
 }
 
-template<class T>
-inline T QUaModel<T>::QUaNodeWrapper::node() const
+template<typename T>
+template<typename X>
+inline 
+typename std::enable_if<std::is_pointer<X>::value, X>::type 
+QUaModel<T>::QUaNodeWrapper::node() const
+{
+	return m_node;
+}
+
+template<typename T>
+template<typename X>
+inline 
+typename std::enable_if<!std::is_pointer<X>::value, X&>::type 
+QUaModel<T>::QUaNodeWrapper::node()
 {
 	return m_node;
 }
@@ -541,3 +596,5 @@ inline std::function<void()>
 }
 
 #endif // QUANODEMODEL_H
+
+

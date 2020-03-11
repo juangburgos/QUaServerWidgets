@@ -75,7 +75,7 @@
          <number>6</number>
         </property>
         <item>
-         <widget class="QTableView" name="tableViewSessions"/>
+         <widget class="QUaSessionTableView" name="tableViewSessions"/>
         </item>
        </layout>
       </widget>
@@ -135,6 +135,11 @@
   </customwidget>
   <customwidget>
    <class>QUaLogTableView</class>
+   <extends>QTableView</extends>
+   <header>dialog.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QUaSessionTableView</class>
    <extends>QTableView</extends>
    <header>dialog.h</header>
   </customwidget>

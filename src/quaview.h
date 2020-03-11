@@ -7,23 +7,126 @@
 #include <QMimeData>
 #include <QUaModel>
 
+// SFINAE on members
+// https://stackoverflow.com/questions/25492589/can-i-use-sfinae-to-selectively-define-a-member-variable-in-a-template-class
+template <typename N, typename Enable = void>
+class QUaViewBase;
+
+template<typename N>
+class QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+{
+public:
+	void setColumnEditor(
+		const int& column,
+		std::function<QWidget*(QWidget*, N)> initEditorCallback,
+		std::function<void(QWidget*, N)>     updateEditorCallback,
+		std::function<void(QWidget*, N)>     updateDataCallback
+	);
+	void removeColumnEditor(const int& column);
+
+protected:
+	// internal editor callbacks
+	struct ColumnEditor
+	{
+		std::function<QWidget*(QWidget*, N)> m_initEditorCallback;
+		std::function<void(QWidget*, N)>     m_updateEditorCallback;
+		std::function<void(QWidget*, N)>     m_updateDataCallback;
+	};
+	QMap<int, ColumnEditor> m_mapEditorFuncs;
+};
+
+template<typename N>
+inline void QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+	::setColumnEditor(
+		const int& column, 
+		std::function<QWidget*(QWidget*, N)> initEditorCallback, 
+		std::function<void(QWidget*, N)>     updateEditorCallback, 
+		std::function<void(QWidget*, N)>     updateDataCallback
+)
+{
+	Q_ASSERT(column >= 0);
+	if (column < 0)
+	{
+		return;
+	}
+	m_mapEditorFuncs.insert(column,
+		{
+			initEditorCallback,
+			updateEditorCallback,
+			updateDataCallback
+		}
+	);
+}
+
+template<typename N>
+inline void QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+	::removeColumnEditor(const int& column)
+{
+	m_mapEditorFuncs.remove(column);
+}
+
+template<typename N>
+class QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+{
+public:
+	void setColumnEditor(
+		const int& column,
+		std::function<QWidget*(QWidget*, const N&)> initEditorCallback,
+		std::function<void(QWidget*, const N&)>     updateEditorCallback,
+		std::function<void(QWidget*, N&)>           updateDataCallback
+	);
+	void removeColumnEditor(const int& column);
+
+protected:
+	// internal editor callbacks
+	struct ColumnEditor
+	{
+		std::function<QWidget*(QWidget*, const N&)> m_initEditorCallback;
+		std::function<void(QWidget*, const N&)>     m_updateEditorCallback;
+		std::function<void(QWidget*, N&)>           m_updateDataCallback;
+	};
+	QMap<int, ColumnEditor> m_mapEditorFuncs;
+};
+
+template<typename N>
+inline void QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+::setColumnEditor(
+	const int& column,
+	std::function<QWidget*(QWidget*, const N&)> initEditorCallback,
+	std::function<void(QWidget*, const N&)>     updateEditorCallback,
+	std::function<void(QWidget*, N&)>           updateDataCallback
+)
+{
+	Q_ASSERT(column >= 0);
+	if (column < 0)
+	{
+		return;
+	}
+	m_mapEditorFuncs.insert(column,
+		{
+			initEditorCallback,
+			updateEditorCallback,
+			updateDataCallback
+		}
+	);
+}
+
+template<typename N>
+inline void QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+::removeColumnEditor(const int& column)
+{
+	m_mapEditorFuncs.remove(column);
+}
+
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism
 template <typename T, typename N>
-class QUaView
+class QUaView : public QUaViewBase<N>
 {
 public:
 	explicit QUaView();
 
 	template <class B>
 	void setModel(QAbstractItemModel* model);
-
-	void setColumnEditor(
-		const int& column,
-		std::function<QWidget*(QWidget*, N)> initEditorCallback,
-		std::function<void(QWidget*, N)> updateEditorCallback,
-		std::function<void(QWidget*, N)> updateDataCallback
-	);
-	void removeColumnEditor(const int& column);
 
 	// signature : void(QList<N>&)
 	template <typename M>
@@ -59,14 +162,7 @@ protected:
 	// copy to avoid dynamic-casting all the time
 	QUaModel<N>* m_model;
 	QSortFilterProxyModel* m_proxy;
-	// internal editor callbacks
-	struct ColumnEditor
-	{
-		std::function<QWidget*(QWidget*, N)> m_initEditorCallback;
-		std::function<void(QWidget*, N)>     m_updateEditorCallback;
-		std::function<void(QWidget*, N)>     m_updateDataCallback;
-	};
-	QMap<int, ColumnEditor> m_mapEditorFuncs;
+
 	// internal keyboard events callbacks
 	std::function<void(QList<N>&)> m_funcHandleDelete;
 	std::function<QMimeData*(const QList<N>&)> m_funcHandleCopy;
@@ -213,7 +309,7 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 		m_thiz->B::keyPressEvent(event);
 		return;
 	}
-	// check if dlete
+	// check if delete
 	if (event->key() == Qt::Key_Delete)
 	{
 		if (!m_funcHandleDelete)
@@ -265,33 +361,6 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 }
 
 template<typename T, typename N>
-inline void QUaView<T, N>::setColumnEditor(
-	const int& column,
-	std::function<QWidget * (QWidget*, N)> initEditorCallback,
-	std::function<void(QWidget*, N)> updateEditorCallback,
-	std::function<void(QWidget*, N)> updateDataCallback)
-{
-	Q_ASSERT(column >= 0);
-	if (column < 0)
-	{
-		return;
-	}
-	m_mapEditorFuncs.insert(column,
-		{
-			initEditorCallback,
-			updateEditorCallback,
-			updateDataCallback
-		}
-	);
-}
-
-template<typename T, typename N>
-inline void QUaView<T, N>::removeColumnEditor(const int& column)
-{
-	m_mapEditorFuncs.remove(column);
-}
-
-template<typename T, typename N>
 inline QList<N> QUaView<T, N>::nodesFromIndexes(const QModelIndexList &indexes) const
 {
 	QList<N> nodes;
@@ -332,8 +401,8 @@ inline QWidget* QUaView<T, N>::QUaItemDelegate::createEditor(
 	{
 		return QStyledItemDelegate::createEditor(parent, option, index);
 	}
-	N node = m_view->m_model->nodeFromIndex(index);
-	return m_view->m_mapEditorFuncs[index.column()].m_initEditorCallback(parent, node);
+	return m_view->m_mapEditorFuncs[index.column()]
+		.m_initEditorCallback(parent, m_view->m_model->nodeFromIndex(index));
 }
 
 template<typename T, typename N>
@@ -348,8 +417,8 @@ inline void QUaView<T, N>::QUaItemDelegate::setEditorData(
 	{
 		return QStyledItemDelegate::setEditorData(editor, index);
 	}
-	N node = m_view->m_model->nodeFromIndex(index);
-	return m_view->m_mapEditorFuncs[index.column()].m_updateEditorCallback(editor, node);
+	return m_view->m_mapEditorFuncs[index.column()]
+		.m_updateEditorCallback(editor, m_view->m_model->nodeFromIndex(index));
 }
 
 template<typename T, typename N>
@@ -363,10 +432,12 @@ inline void QUaView<T, N>::QUaItemDelegate::setModelData(
 	if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
 		!m_view->m_mapEditorFuncs[index.column()].m_updateDataCallback)
 	{
-		return QStyledItemDelegate::setModelData(editor, model, index);
+		return QStyledItemDelegate::setModelData(editor, model, const_index);
 	}
-	N node = m_view->m_model->nodeFromIndex(index);
-	return m_view->m_mapEditorFuncs[index.column()].m_updateDataCallback(editor, node);
+	return m_view->m_mapEditorFuncs[index.column()]
+		.m_updateDataCallback(editor, m_view->m_model->nodeFromIndex(index));
 }
 
 #endif // QUAVIEW_H
+
+

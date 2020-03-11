@@ -37,15 +37,31 @@ QUaModelItemTraits::IsEqual<QUaLog>(const QUaLog& node1, const QUaLog& node2)
         node1.timestamp == node2.timestamp;
 }
 
-typedef QUaTableModel<QUaLog> QUaLogModel;
-typedef QUaTableModel<const QUaSession*> QUaSessionModel;
-
 inline bool operator==(const QUaLog& node1, const QUaLog& node2)
 {
     return QUaModelItemTraits::IsEqual<QUaLog>(node1, node2);
 }
 
+// overload to support default editor (QStyledItemDelegate::setEditorData)
+// implement either this or ui->tableViewLogs->setColumnEditor
+// setColumnEditor has preference in case both implemented
+template<>
+inline bool
+QUaModelItemTraits::SetData<QUaLog>(
+    QUaLog & node, 
+    const int& column, 
+    const QVariant& value)
+{
+    Q_ASSERT_X(column == 3, "SetData<QUaLog>", "Only message column is editable.");
+    node.message = value.toByteArray();
+    return true;
+}
+
+typedef QUaTableModel<QUaLog> QUaLogModel;
+typedef QUaTableModel<const QUaSession*> QUaSessionModel;
+
 typedef QUaTableView<QUaLog> QUaLogTableView;
+typedef QUaTableView<const QUaSession*> QUaSessionTableView;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }

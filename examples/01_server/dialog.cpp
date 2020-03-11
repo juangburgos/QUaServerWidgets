@@ -1,6 +1,8 @@
 #include "dialog.h"
 #include "ui_dialog.h"
 
+#include <QLineEdit>
+
 QMetaEnum logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
 QMetaEnum logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
 
@@ -100,9 +102,31 @@ void Dialog::setupLogTable()
     m_modelLog.setColumnDataSource(3, tr("Message"), 
     [](QUaLog log) {
         return log.message;
-    }/* other callbacks for data that changes or editable */);
+    },
+    nullptr, /* no data changes, but editable just for testing */
+    [](QUaLog log) {
+        Q_UNUSED(log);
+        return true;
+    });
+
+    // log message editable just for testing
+    ui->tableViewLogs->setColumnEditor(3, 
+    [](QWidget *parent, const QUaLog& log) {
+        Q_UNUSED(log);
+        return new QLineEdit(parent);
+    }, 
+    [](QWidget* w, const QUaLog& log) {
+        auto le = qobject_cast<QLineEdit*>(w);
+        le->setText(log.message);
+    },
+    [](QWidget *w, QUaLog &log) {
+        auto le = qobject_cast<QLineEdit*>(w);
+        log.message = le->text().toUtf8();
+    });
 
     // support delete and copy
+    ui->tableViewLogs->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewLogs->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewLogs->setDeleteCallback(
     [this](QList<QUaLog> &logs) {
         while (logs.count() > 0)
@@ -168,6 +192,27 @@ void Dialog::setupSessionTable()
     [](const QUaSession* session) {
         return session->userName();
     }/* other callbacks for data that changes or editable */);
+
+    // support copy
+    ui->tableViewSessions->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewSessions->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableViewSessions->setCopyCallback(
+    [](const QList<const QUaSession*> &sessions) {
+        auto mime = new QMimeData();
+        for (auto session : sessions)
+        {
+            mime->setText(
+                mime->text() + QString("%1, %2, %3, %4, %5, %6.\n")
+                .arg(session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
+                .arg(session->sessionId())
+                .arg(session->applicationName())
+                .arg(session->address())
+                .arg(session->port())
+                .arg(session->userName())
+            );
+        }
+        return mime;
+    });
 
     // allow sorting
     m_proxySession.setSourceModel(&m_modelSession);

@@ -8,7 +8,7 @@
 struct QUaModelItemTraits
 {
 public:
-	// call callback to notify when T is about to be destroyed (e.g. QObject::destroyed signal)
+	// notify when T is about to be destroyed by calling *callback* (e.g. QObject::destroyed signal)
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
@@ -80,6 +80,27 @@ public:
 	IsEqual(const T n1, const T n2)
 	{
 		return n1 == n2;
+	}
+	// set data into T (reference)
+	// default implementation if T is type
+	template<typename T> static
+	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
+	SetData(T& n, const int &column, const QVariant& value)
+	{
+		Q_UNUSED(n);
+		Q_UNUSED(column);
+		Q_UNUSED(value);
+		return false;
+	}
+	// default implementation if T is pointer
+	template<typename T> static
+	typename std::enable_if<std::is_pointer<T>::value, bool>::type
+	SetData(T n, const int& column, const QVariant& value)
+	{
+		Q_UNUSED(n);
+		Q_UNUSED(column);
+		Q_UNUSED(value);
+		return false;
 	}
 };
 
