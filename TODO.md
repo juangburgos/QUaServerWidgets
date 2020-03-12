@@ -1,5 +1,9 @@
 # TODO
 
+## What if want multiple QUaLog models?
+
+The problem is we can only overwrite the traits once.
+
 ---
 
 ## Support Drag and Drop
@@ -8,7 +12,7 @@
 
 ---
 
-## Possibility to move ordering/filtering (proxy) into views
+## Study possibility to move ordering/filtering (proxy) into views
 
 .
 

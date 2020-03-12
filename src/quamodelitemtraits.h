@@ -27,6 +27,25 @@ public:
 		Q_UNUSED(callback);
 		return QMetaObject::Connection();
 	}
+	// notify when T just got a new child by calling *callback* (e.g. QUaNode::childAdded signal)
+	// default implementation if T is type
+	template<typename T> static
+	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
+	NewChildCallback(T& n, std::function<void(T&)> callback)
+	{
+		Q_UNUSED(n);
+		Q_UNUSED(callback);
+		return QMetaObject::Connection();
+	}
+	// default implementation if T is pointer
+	template<typename T> static
+	typename std::enable_if<std::is_pointer<T>::value, QMetaObject::Connection>::type
+	NewChildCallback(T n, std::function<void(T)> callback)
+	{
+		Q_UNUSED(n);
+		Q_UNUSED(callback);
+		return QMetaObject::Connection();
+	}
 	// return a list of children of T
 	// default implementation if T is type
 	template<typename T> static

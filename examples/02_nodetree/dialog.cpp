@@ -13,15 +13,22 @@
 #include "quaxmlserializer.h"
 #include "quasqliteserializer.h"
 
-QMetaEnum logMetaEnum = QMetaEnum::fromType<QUaLogLevel>();
+QMetaEnum logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
+QMetaEnum logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
+QUaServer * g_server = nullptr;
+
 QString logToString(const QQueue<QUaLog>& logOut)
 {
+    Q_CHECK_PTR(g_server);
     QString strLog;
     for (auto &log : logOut)
     {
+        // construct string
         strLog += QString("[%1] : %2\n")
-            .arg(logMetaEnum.valueToKey(static_cast<int>(log.level)))
+            .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
             .arg(log.message.constData());
+        // also emit to show in log tree
+        emit g_server->logMessage(log);
     }
     return strLog;
 }
@@ -29,27 +36,18 @@ QString logToString(const QQueue<QUaLog>& logOut)
 Dialog::Dialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::Dialog)
-    , m_model(this)
+    , m_modelNodes(this)
 {
     ui->setupUi(this);
-    QObject::connect(&m_server, &QUaServer::logMessage, this,
-    [](const QUaLog &log) {
-        qDebug() << "[" << log.level << "]["<< log.category << "] :" << log.message;
-    });
-    QObject::connect(&m_server, &QUaServer::clientConnected, this,
-    [](const QUaSession* session) {
-        qDebug() << "[INFO] Client connected" << QString("%1:%2").arg(session->address()).arg(session->port());
-        qDebug() << "[INFO] Client connected" << session->applicationName();
-        });
-    QObject::connect(&m_server, &QUaServer::clientDisconnected, this,
-        [](const QUaSession* session) {
-            qDebug() << "[INFO] Client disconnected" << QString("%1:%2").arg(session->address()).arg(session->port());
-            qDebug() << "[INFO] Client disconnected" << session->applicationName();
-    });
+
+    // set global server pointer
+    g_server = &m_server;
+    // setup node tree
+    this->setupTreeNodes();
+    // setup log tree
+    this->setupTreeLogs();
     // setup server
     this->setupServer();
-    // setup node tree
-    this->setupTree();
 }
 
 Dialog::~Dialog()
@@ -66,7 +64,7 @@ void Dialog::setupServer()
     // add extra method to test clear tree
     objs->addMethod("clearTree",
     [this]() {
-        m_model.setRootNode(nullptr);
+        m_modelNodes.setRootNode(nullptr);
     });
     // test serialize
     objs->addMethod("SerializeXML", [objs](QString strFileName) {
@@ -80,6 +78,11 @@ void Dialog::setupServer()
 	    {
             return logToString(logOut);
 	    }
+        for (auto& log : logOut)
+        {
+            // also emit to show in log tree
+            emit objs->server()->logMessage(log);
+        }
 	    return QString("Success : Serialized to %1 file.").arg(strFileName);
     });
     objs->addMethod("SerializeSQL", [objs](QString strFileName) {
@@ -93,6 +96,11 @@ void Dialog::setupServer()
 	    {
             return logToString(logOut);
 	    }
+        for (auto& log : logOut)
+        {
+            // also emit to show in log tree
+            emit objs->server()->logMessage(log);
+        }
 	    return QString("Success : Serialized to %1 file.").arg(strFileName);
     });
     // test deserialize
@@ -107,6 +115,11 @@ void Dialog::setupServer()
 	    {
             return logToString(logOut);
 	    }
+        for (auto& log : logOut)
+        {
+            // also emit to show in log tree
+            emit objs->server()->logMessage(log);
+        }
 	    return QString("Success : Deserialized from %1 file.").arg(strFileName);
     });
     objs->addMethod("DeserializeSQL", [objs](QString strFileName) {
@@ -120,25 +133,30 @@ void Dialog::setupServer()
 	    {
             return logToString(logOut);
 	    }
+        for (auto& log : logOut)
+        {
+            // also emit to show in log tree
+            emit objs->server()->logMessage(log);
+        }
 	    return QString("Success : Deserialized from %1 file.").arg(strFileName);
     });
     // start server
     m_server.start();
 }
 
-void Dialog::setupTree()
+void Dialog::setupTreeNodes()
 {
     auto objs = m_server.objectsFolder();
     // setup model into tree
-    m_model.setRootNode(objs);
+    m_modelNodes.setRootNode(objs);
 
     // setup tree context menu
-    ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
-    QObject::connect(ui->treeView, &QTreeView::customContextMenuRequested, this,
+    ui->treeViewNodes->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(ui->treeViewNodes, &QTreeView::customContextMenuRequested, this,
     [this](const QPoint& point) {
-        QModelIndex index = m_proxy.mapToSource(ui->treeView->indexAt(point));
-        QMenu contextMenu(ui->treeView);
-        auto node = m_model.nodeFromIndex(index);
+        QModelIndex index = m_proxyNodes.mapToSource(ui->treeViewNodes->indexAt(point));
+        QMenu contextMenu(ui->treeViewNodes);
+        auto node = m_modelNodes.nodeFromIndex(index);
         Q_CHECK_PTR(node);
         QString strType(node->metaObject()->className());
         // objects, objectsext and folders are all objects
@@ -161,19 +179,19 @@ void Dialog::setupTree()
             this->setupQUaBaseObjectMenu(contextMenu, obj);
         }
         // exec
-        contextMenu.exec(ui->treeView->viewport()->mapToGlobal(point));
+        contextMenu.exec(ui->treeViewNodes->viewport()->mapToGlobal(point));
     });
 
     // setup model column data sources
-    m_model.setColumnDataSource(0, tr("Display Name"), 
+    m_modelNodes.setColumnDataSource(0, tr("Display Name"), 
     [](QUaNode * node) {
         return node->displayName();
     }/* second callback is only necessary for data that changes */);
-    m_model.setColumnDataSource(1, tr("Node Id"), 
+    m_modelNodes.setColumnDataSource(1, tr("Node Id"), 
     [](QUaNode * node) {
         return node->nodeId();
     });
-    m_model.setColumnDataSource(2, tr("Value"), 
+    m_modelNodes.setColumnDataSource(2, tr("Value"), 
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables
@@ -213,7 +231,7 @@ void Dialog::setupTree()
     });
 
     // setup tree editor
-    ui->treeView->setColumnEditor(2,
+    ui->treeViewNodes->setColumnEditor(2,
     [](QWidget* parent, QUaNode* node) {
         Q_UNUSED(node);
         // create editor
@@ -240,7 +258,7 @@ void Dialog::setupTree()
     });
 
     // support copy-paste
-    ui->treeView->setCopyCallback(
+    ui->treeViewNodes->setCopyCallback(
     [](const QList<QUaNode*> &nodes) {
         auto mime = new QMimeData();
         qDebug() << "copy callback";
@@ -255,7 +273,7 @@ void Dialog::setupTree()
         }
         return mime;
     });
-    ui->treeView->setPasteCallback(
+    ui->treeViewNodes->setPasteCallback(
     [](const QList<QUaNode*> &nodes, const QMimeData* mime) {
         qDebug() << "paste callback :" 
                  << (mime ? mime->text() : "no data");
@@ -266,9 +284,56 @@ void Dialog::setupTree()
     });
 
     // allow sorting
-    m_proxy.setSourceModel(&m_model);
-    ui->treeView->setModel(&m_proxy);
-    ui->treeView->setSortingEnabled(true);
+    m_proxyNodes.setSourceModel(&m_modelNodes);
+    ui->treeViewNodes->setModel(&m_proxyNodes);
+    ui->treeViewNodes->setSortingEnabled(true);
+}
+
+template<>
+inline QMetaObject::Connection
+QUaModelItemTraits::NewChildCallback<QUaLog>(
+    QUaLog &log, 
+    std::function<void(QUaLog&)> callback)
+{
+    Q_CHECK_PTR(g_server);
+    // valid logs do not have children
+    if (QUaModelItemTraits::IsValid<QUaLog>(log))
+    {
+        return QMetaObject::Connection();
+    }
+    // invalid logs (only one; root) have as children all valid logs
+    return QObject::connect(g_server, &QUaServer::logMessage,
+    [callback](const QUaLog& log) {
+        QUaLog nlog = log;
+        callback(nlog);
+    });
+}
+
+void Dialog::setupTreeLogs()
+{
+    m_modelLogs.setRootNode(QUaLog());
+    // setup model column data sources
+    m_modelLogs.setColumnDataSource(0, tr("Timestamp"),
+    [](QUaLog log) {
+        return log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    }/* other callbacks for data that changes or editable */);
+    m_modelLogs.setColumnDataSource(1, tr("Level"),
+    [](QUaLog log) {
+        return logLevelMetaEnum.valueToKey(static_cast<int>(log.level));
+    }/* other callbacks for data that changes or editable */);
+    m_modelLogs.setColumnDataSource(2, tr("Category"),
+    [](QUaLog log) {
+        return logCategoryMetaEnum.valueToKey(static_cast<int>(log.category));
+    }/* other callbacks for data that changes or editable */);
+    m_modelLogs.setColumnDataSource(3, tr("Message"),
+    [](QUaLog log) {
+        return log.message;
+    });
+    // allow sorting
+    m_proxyLogs.setSourceModel(&m_modelLogs);
+    ui->treeViewLog->setModel(&m_proxyLogs);
+    ui->treeViewLog->setSortingEnabled(true);
+    ui->treeViewLog->sortByColumn(0, Qt::DescendingOrder);
 }
 
 void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)

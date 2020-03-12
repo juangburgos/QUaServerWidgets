@@ -483,11 +483,7 @@ inline QUaModel<T>::QUaNodeWrapper::QUaNodeWrapper(
 		!m_parent, 
 		"QUaNodeWrapper", "Invalid node argument"
 	);
-	// nothing else to do if root
-	if (!QUaModelItemTraits::IsValid<T>(m_node))
-	{
-		return;
-	}
+	// NOTE : QUaModelItemTraits methods must handle nullptr (or invalid) m_node
 	// subscribe to node destruction, store connection to disconnect on destructor
 	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<T>(
 			m_node, 

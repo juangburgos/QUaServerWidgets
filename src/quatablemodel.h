@@ -66,7 +66,7 @@ inline void QUaTableModel<T>::addNode(T node)
 	this->bindChangeCallbackForAllColumns(wrapper, false);
 	// subscribe to instance removed
 	// remove rows better be queued in the event loop
-	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<T>(node, 
+	auto conn = QUaModelItemTraits::DestroyCallback<T>(node, 
         static_cast<std::function<void(void)>>([this, wrapper]() {
 			Q_CHECK_PTR(wrapper);
             Q_ASSERT(QUaModel<T>::m_root);

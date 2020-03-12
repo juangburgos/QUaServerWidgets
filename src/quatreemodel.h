@@ -16,7 +16,6 @@ public:
 private:
     void bindRoot(typename QUaModel<T>::QUaNodeWrapper* root);
     void bindRecursivelly(typename QUaModel<T>::QUaNodeWrapper* wrapper);
-    void unbindNodeRecursivelly(typename QUaModel<T>::QUaNodeWrapper* wrapper);
 };
 
 template<class T>
@@ -30,7 +29,6 @@ inline QUaTreeModel<T>::~QUaTreeModel()
 {
     if (QUaModel<T>::m_root)
     {
-        this->unbindNodeRecursivelly(QUaModel<T>::m_root);
         delete QUaModel<T>::m_root;
         QUaModel<T>::m_root = nullptr;
     }
@@ -45,11 +43,7 @@ inline T QUaTreeModel<T>::rootNode() const
 template<class T>
 inline void QUaTreeModel<T>::setRootNode(T rootNode)
 {
-    this->bindRoot(
-        rootNode ? 
-        new typename QUaModel<T>::QUaNodeWrapper(rootNode) :
-        nullptr
-    );
+    this->bindRoot(new typename QUaModel<T>::QUaNodeWrapper(rootNode));
 }
 
 template<class T>
@@ -66,17 +60,13 @@ inline void QUaTreeModel<T>::bindRoot(
     // if old root node was valid, disconnect to recv signals recursivelly
     if (QUaModel<T>::m_root)
     {
-        this->unbindNodeRecursivelly(QUaModel<T>::m_root);
         delete QUaModel<T>::m_root;
         QUaModel<T>::m_root = nullptr;
     }
     // copy
     QUaModel<T>::m_root = root;
     // subscribe to changes
-    if (QUaModel<T>::m_root)
-    {
-        this->bindRecursivelly(QUaModel<T>::m_root);
-    }
+    this->bindRecursivelly(QUaModel<T>::m_root);
     // notify views new data is available
     this->endResetModel();
 }
@@ -86,22 +76,13 @@ inline void QUaTreeModel<T>::bindRecursivelly(
     typename QUaModel<T>::QUaNodeWrapper* wrapper
 )
 {
-     // subscribe to node removed
-    // unbind tree must run inmediatly
-    QObject::connect(wrapper->node(), &QObject::destroyed, this,
-    [this, wrapper]() {
-        Q_CHECK_PTR(wrapper);
-        // stop all events for sub-tree so children's QObject::destroyed 
-        // is not handled
-        this->unbindNodeRecursivelly(wrapper);
-    }, Qt::DirectConnection);
-    // remove rows better be queued in the event loop
-    QObject::connect(wrapper->node(), &QObject::destroyed, this,
-    [this, wrapper]() {
+    // subscribe to node removed
+    auto conn = QUaModelItemTraits::DestroyCallback<T>(wrapper->node(),
+        static_cast<std::function<void(void)>>([this, wrapper]() {
         Q_CHECK_PTR(wrapper);
         if (wrapper == QUaModel<T>::m_root)
         {
-            this->setRootNode(nullptr);
+            this->setRootNode(QUaModelItemTraits::GetInvalid<T>());
             return;
         }
         // NOTE : node->m_parent must be valid because (node == m_root) 
@@ -119,11 +100,15 @@ inline void QUaTreeModel<T>::bindRecursivelly(
         delete wrapper->parent()->children().takeAt(row);
         // notify views that row removal has finished
         this->endRemoveRows();
-    }, Qt::QueuedConnection);
+    }));
+    // NOTE : QUaNodeWrapper destructor removes connections
+    if (conn)
+    {
+        wrapper->connections() << conn;
+    }
     // subscribe to new child node added
-    // insert rows better be queued in the event loop
-    QObject::connect(wrapper->node(), &std::remove_pointer<T>::type::childAdded, this,
-    [this, wrapper](T childNode) {
+    conn = QUaModelItemTraits::NewChildCallback<T>(wrapper->node(),
+        static_cast<std::function<void(T)>>([this, wrapper](T childNode) {
         // get new node's row
         int row = wrapper->children().count();
         // only use indexes created by model
@@ -151,32 +136,18 @@ inline void QUaTreeModel<T>::bindRecursivelly(
         );
         Q_ASSERT(indexOk);
         Q_UNUSED(indexOk);
-    }, Qt::QueuedConnection);
+    }));
+    // NOTE : QUaNodeWrapper destructor removes connections
+    if (conn)
+    {
+        wrapper->connections() << conn;
+    }
     // bind callback for data change on each column
     this->bindChangeCallbackForAllColumns(wrapper);
     // recurse children
     for (auto child : wrapper->children())
     {
         this->bindRecursivelly(child);
-    }
-}
-
-template<class T>
-inline void QUaTreeModel<T>::unbindNodeRecursivelly(
-    typename QUaModel<T>::QUaNodeWrapper* wrapper
-)
-{
-    Q_CHECK_PTR(wrapper);
-    // disconnect from internal node
-    if (wrapper->node())
-    {
-        this->disconnect(wrapper->node());
-        wrapper->node()->disconnect(this);
-    }
-    // disconnect children
-    for (auto child : wrapper->children())
-    {
-        this->unbindNodeRecursivelly(child);
     }
 }
 
