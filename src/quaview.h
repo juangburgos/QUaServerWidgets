@@ -1,6 +1,7 @@
 #ifndef QUAVIEW_H
 #define QUAVIEW_H
 
+#include <QApplication>
 #include <QStyledItemDelegate>
 #include <QSortFilterProxyModel>
 #include <QClipboard>
@@ -10,10 +11,11 @@
 // SFINAE on members
 // https://stackoverflow.com/questions/25492589/can-i-use-sfinae-to-selectively-define-a-member-variable-in-a-template-class
 template <typename N, typename Enable = void>
-class QUaViewBase;
+class QUaViewBase {};
 
+// pointer type specialization
 template<typename N>
-class QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+class QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
 {
 public:
 	void setColumnEditor(
@@ -36,7 +38,7 @@ protected:
 };
 
 template<typename N>
-inline void QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::setColumnEditor(
 		const int& column, 
 		std::function<QWidget*(QWidget*, N)> initEditorCallback, 
@@ -59,14 +61,15 @@ inline void QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
 }
 
 template<typename N>
-inline void QUaViewBase<N, std::enable_if_t<std::is_pointer<N>::value>>
+inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
 }
 
+// instance specialization
 template<typename N>
-class QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 {
 public:
 	void setColumnEditor(
@@ -89,7 +92,7 @@ protected:
 };
 
 template<typename N>
-inline void QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 ::setColumnEditor(
 	const int& column,
 	std::function<QWidget*(QWidget*, const N&)> initEditorCallback,
@@ -112,7 +115,7 @@ inline void QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
 }
 
 template<typename N>
-inline void QUaViewBase<N, std::enable_if_t<!std::is_pointer<N>::value>>
+inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 ::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
@@ -175,7 +178,7 @@ protected:
 	{
 		//Q_OBJECT : NOTE : Qt do not support this on nested classes
 	public:
-		explicit QUaItemDelegate(QObject* parent = 0);
+        explicit QUaItemDelegate(QObject* parent = nullptr);
 
 		// editor factory and intial setup
 		QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
@@ -396,13 +399,13 @@ inline QWidget* QUaView<T, N>::QUaItemDelegate::createEditor(
 ) const
 {
 	QModelIndex index = m_view->m_proxy ? m_view->m_proxy->mapToSource(const_index) : const_index;
-	if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
-		!m_view->m_mapEditorFuncs[index.column()].m_initEditorCallback)
+    if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
+        !m_view->m_mapEditorFuncs[index.column()].m_initEditorCallback)
 	{
 		return QStyledItemDelegate::createEditor(parent, option, index);
 	}
-	return m_view->m_mapEditorFuncs[index.column()]
-		.m_initEditorCallback(parent, m_view->m_model->nodeFromIndex(index));
+    return m_view->m_mapEditorFuncs[index.column()]
+        .m_initEditorCallback(parent, m_view->m_model->nodeFromIndex(index));
 }
 
 template<typename T, typename N>
@@ -412,12 +415,12 @@ inline void QUaView<T, N>::QUaItemDelegate::setEditorData(
 ) const
 {
 	QModelIndex index = m_view->m_proxy ? m_view->m_proxy->mapToSource(const_index) : const_index;
-	if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
-		!m_view->m_mapEditorFuncs[index.column()].m_updateEditorCallback)
+    if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
+        !m_view->m_mapEditorFuncs[index.column()].m_updateEditorCallback)
 	{
 		return QStyledItemDelegate::setEditorData(editor, index);
 	}
-	return m_view->m_mapEditorFuncs[index.column()]
+    m_view->m_mapEditorFuncs[index.column()]
 		.m_updateEditorCallback(editor, m_view->m_model->nodeFromIndex(index));
 }
 
@@ -429,12 +432,12 @@ inline void QUaView<T, N>::QUaItemDelegate::setModelData(
 ) const
 {
 	QModelIndex index = m_view->m_proxy ? m_view->m_proxy->mapToSource(const_index) : const_index;
-	if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
-		!m_view->m_mapEditorFuncs[index.column()].m_updateDataCallback)
+    if (!m_view->m_mapEditorFuncs.contains(index.column()) ||
+        !m_view->m_mapEditorFuncs[index.column()].m_updateDataCallback)
 	{
 		return QStyledItemDelegate::setModelData(editor, model, const_index);
 	}
-	return m_view->m_mapEditorFuncs[index.column()]
+    m_view->m_mapEditorFuncs[index.column()]
 		.m_updateDataCallback(editor, m_view->m_model->nodeFromIndex(index));
 }
 

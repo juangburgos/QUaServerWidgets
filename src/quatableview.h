@@ -38,7 +38,7 @@ template<typename N>
 inline void QUaTableView<N>::setModel(QAbstractItemModel* model)
 {
 	QUaView<QUaTableView, N>
-		::setModel<QTableView>(model);
+        ::template setModel<QTableView>(model);
 }
 
 template<typename N>
@@ -48,14 +48,14 @@ inline void QUaTableView<N>::dataChanged(
 	const QVector<int>& roles)
 {
 	QUaView<QUaTableView, N>
-		::dataChanged<QTableView>(topLeft, bottomRight, roles);
+        ::template dataChanged<QTableView>(topLeft, bottomRight, roles);
 }
 
 template<typename N>
 inline void QUaTableView<N>::keyPressEvent(QKeyEvent* event)
 {
 	QUaView<QUaTableView, N>
-		::keyPressEvent<QTableView>(event);
+        ::template keyPressEvent<QTableView>(event);
 }
 
 #endif // QUATABLEVIEW_H

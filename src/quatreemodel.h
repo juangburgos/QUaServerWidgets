@@ -14,32 +14,32 @@ public:
     void setRootNode(T rootNode = nullptr);
 
 private:
-    void bindRoot(QUaModel<T>::QUaNodeWrapper* root);
-    void bindRecursivelly(QUaModel<T>::QUaNodeWrapper* wrapper);
-    void unbindNodeRecursivelly(QUaModel<T>::QUaNodeWrapper* wrapper);
+    void bindRoot(typename QUaModel<T>::QUaNodeWrapper* root);
+    void bindRecursivelly(typename QUaModel<T>::QUaNodeWrapper* wrapper);
+    void unbindNodeRecursivelly(typename QUaModel<T>::QUaNodeWrapper* wrapper);
 };
 
 template<class T>
 inline QUaTreeModel<T>::QUaTreeModel(QObject* parent)
-    : QUaModel(parent)
+    : QUaModel<T>(parent)
 {
 }
 
 template<class T>
 inline QUaTreeModel<T>::~QUaTreeModel()
 {
-    if (m_root)
+    if (QUaModel<T>::m_root)
     {
-        this->unbindNodeRecursivelly(m_root);
-        delete m_root;
-        m_root = nullptr;
+        this->unbindNodeRecursivelly(QUaModel<T>::m_root);
+        delete QUaModel<T>::m_root;
+        QUaModel<T>::m_root = nullptr;
     }
 }
 
 template<class T>
 inline T QUaTreeModel<T>::rootNode() const
 {
-    return m_root ? m_root->node() : nullptr;
+    return QUaModel<T>::m_root ? QUaModel<T>::m_root->node() : nullptr;
 }
 
 template<class T>
@@ -47,35 +47,35 @@ inline void QUaTreeModel<T>::setRootNode(T rootNode)
 {
     this->bindRoot(
         rootNode ? 
-        new QUaModel<QUaNode*>::QUaNodeWrapper(rootNode) :
+        new typename QUaModel<T>::QUaNodeWrapper(rootNode) :
         nullptr
     );
 }
 
 template<class T>
 inline void QUaTreeModel<T>::bindRoot(
-    QUaModel<T>::QUaNodeWrapper* root
+    typename QUaModel<T>::QUaNodeWrapper* root
 )
 {
-    if (m_root == root)
+    if (QUaModel<T>::m_root == root)
     {
         return;
     }
     // notify views all old data is invalid
     this->beginResetModel();
     // if old root node was valid, disconnect to recv signals recursivelly
-    if (m_root)
+    if (QUaModel<T>::m_root)
     {
-        this->unbindNodeRecursivelly(m_root);
-        delete m_root;
-        m_root = nullptr;
+        this->unbindNodeRecursivelly(QUaModel<T>::m_root);
+        delete QUaModel<T>::m_root;
+        QUaModel<T>::m_root = nullptr;
     }
     // copy
-    m_root = root;
+    QUaModel<T>::m_root = root;
     // subscribe to changes
-    if (m_root)
+    if (QUaModel<T>::m_root)
     {
-        this->bindRecursivelly(m_root);
+        this->bindRecursivelly(QUaModel<T>::m_root);
     }
     // notify views new data is available
     this->endResetModel();
@@ -83,7 +83,7 @@ inline void QUaTreeModel<T>::bindRoot(
 
 template<class T>
 inline void QUaTreeModel<T>::bindRecursivelly(
-    QUaModel<T>::QUaNodeWrapper* wrapper
+    typename QUaModel<T>::QUaNodeWrapper* wrapper
 )
 {
      // subscribe to node removed
@@ -99,7 +99,7 @@ inline void QUaTreeModel<T>::bindRecursivelly(
     QObject::connect(wrapper->node(), &QObject::destroyed, this,
     [this, wrapper]() {
         Q_CHECK_PTR(wrapper);
-        if (wrapper == m_root)
+        if (wrapper == QUaModel<T>::m_root)
         {
             this->setRootNode(nullptr);
             return;
@@ -110,8 +110,8 @@ inline void QUaTreeModel<T>::bindRecursivelly(
         // only use indexes created by model
         int row = wrapper->index().row();
         QModelIndex index = wrapper->parent()->index();
-        Q_ASSERT(wrapper->parent() == m_root || 
-            this->checkIndex(index, CheckIndexOption::IndexIsValid));
+        Q_ASSERT(wrapper->parent() == QUaModel<T>::m_root ||
+            this->checkIndex(index, QAbstractItemModel::CheckIndexOption::IndexIsValid));
         // notify views that row will be removed
         this->beginRemoveRows(index, row, row);
         // remove from parent, destructor deletes wrapper sub-tree recursivelly
@@ -122,18 +122,18 @@ inline void QUaTreeModel<T>::bindRecursivelly(
     }, Qt::QueuedConnection);
     // subscribe to new child node added
     // insert rows better be queued in the event loop
-    QObject::connect(wrapper->node(), &QUaNode::childAdded, this,
-    [this, wrapper](QUaNode* childNode) {
+    QObject::connect(wrapper->node(), &std::remove_pointer<T>::type::childAdded, this,
+    [this, wrapper](T childNode) {
         // get new node's row
         int row = wrapper->children().count();
         // only use indexes created by model
         QModelIndex index = wrapper->index();
-        Q_ASSERT(wrapper == m_root || 
-            this->checkIndex(index, CheckIndexOption::IndexIsValid));
+        Q_ASSERT(wrapper == QUaModel<T>::m_root ||
+            this->checkIndex(index, QAbstractItemModel::CheckIndexOption::IndexIsValid));
         // notify views that row will be added
         this->beginInsertRows(index, row, row);
         // create new wrapper
-        auto* childWrapper = new QUaModel<QUaNode*>::QUaNodeWrapper(
+        auto* childWrapper = new typename QUaModel<T>::QUaNodeWrapper(
             childNode, wrapper
         );
         // apprend to parent's children list
@@ -147,7 +147,7 @@ inline void QUaTreeModel<T>::bindRecursivelly(
         // and if a child is added and parent's index is not ready then crash
         bool indexOk = this->checkIndex(
             this->index(row, 0, index), 
-            CheckIndexOption::IndexIsValid
+            QAbstractItemModel::CheckIndexOption::IndexIsValid
         );
         Q_ASSERT(indexOk);
         Q_UNUSED(indexOk);
@@ -163,7 +163,7 @@ inline void QUaTreeModel<T>::bindRecursivelly(
 
 template<class T>
 inline void QUaTreeModel<T>::unbindNodeRecursivelly(
-    QUaModel<T>::QUaNodeWrapper* wrapper
+    typename QUaModel<T>::QUaNodeWrapper* wrapper
 )
 {
     Q_CHECK_PTR(wrapper);

@@ -5,9 +5,16 @@
 #include <QUaModelItemTraits>
 
 template <typename T>
+class QUaTableModel;
+
+template <typename T>
+class QUaTreeModel;
+
+template <typename T>
 class QUaModel : public QAbstractItemModel
 {
-
+    friend class QUaTableModel<T>;
+    friend class QUaTreeModel<T>;
 public:
     explicit QUaModel(QObject *parent = nullptr);
     ~QUaModel();
@@ -484,10 +491,10 @@ inline QUaModel<T>::QUaNodeWrapper::QUaNodeWrapper(
 	// subscribe to node destruction, store connection to disconnect on destructor
 	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<T>(
 			m_node, 
-			(std::function<void(void)>)[this]() {
+            static_cast<std::function<void(void)>>([this]() {
 				this->m_node = 
 					QUaModelItemTraits::GetInvalid<T>();
-			}
+            })
 		);
 	if (conn)
 	{

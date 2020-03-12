@@ -3,7 +3,7 @@
 
 #include <QUaModel>
 
-template <class T>
+template <typename T>
 class QUaTableModel : public QUaModel<T>
 {
 public:
@@ -19,47 +19,47 @@ public:
     void clear();
 
 protected:
-    void removeWrapper(QUaModel<T>::QUaNodeWrapper * wrapper);
+    void removeWrapper(typename QUaModel<T>::QUaNodeWrapper * wrapper);
 };
 
-template<class T>
+template<typename T>
 inline QUaTableModel<T>::QUaTableModel(QObject* parent) :
 	QUaModel<T>(parent)
 {
-	m_root = new QUaModel<T>::QUaNodeWrapper(
+    QUaModel<T>::m_root = new typename QUaModel<T>::QUaNodeWrapper(
 			QUaModelItemTraits::GetInvalid<T>()
 		);
 }
 
-template<class T>
+template<typename T>
 inline QUaTableModel<T>::~QUaTableModel()
 {
-	if (m_root)
+    if (QUaModel<T>::m_root)
 	{
-		delete m_root;
-		m_root = nullptr;
+        delete QUaModel<T>::m_root;
+        QUaModel<T>::m_root = nullptr;
 	}
 }
 
-template<class T>
+template<typename T>
 inline void QUaTableModel<T>::addNode(T node)
 {
-	Q_ASSERT(!m_root->childByNode(node));
-	QModelIndex index = m_root->index();
+    Q_ASSERT(!QUaModel<T>::m_root->childByNode(node));
+    QModelIndex index = QUaModel<T>::m_root->index();
 	// get new node's row
-	int row = m_root->children().count();
+    int row = QUaModel<T>::m_root->children().count();
 	// notify views that row will be added
 	this->beginInsertRows(index, row, row);
 	// create new wrapper
-	auto* wrapper = new QUaModel<T>::QUaNodeWrapper(node, m_root, false);
+    auto* wrapper = new typename QUaModel<T>::QUaNodeWrapper(node, QUaModel<T>::m_root, false);
 	// apprend to parent's children list
-	m_root->children() << wrapper;
+    QUaModel<T>::m_root->children() << wrapper;
 	// notify views that row addition has finished
 	this->endInsertRows();
 	// force index creation (indirectly)
 	// because sometimes they are not created until a view requires them
 	// and if a child is added and parent's index is not ready then crash
-	bool indexOk = this->checkIndex(this->index(row, 0, index), CheckIndexOption::IndexIsValid);
+    bool indexOk = this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid);
 	Q_ASSERT(indexOk);
 	Q_UNUSED(indexOk);
 	// bind callback for data change on each column
@@ -67,12 +67,12 @@ inline void QUaTableModel<T>::addNode(T node)
 	// subscribe to instance removed
 	// remove rows better be queued in the event loop
 	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<T>(node, 
-		(std::function<void(void)>)[this, wrapper]() {
+        static_cast<std::function<void(void)>>([this, wrapper]() {
 			Q_CHECK_PTR(wrapper);
-			Q_ASSERT(m_root);
+            Q_ASSERT(QUaModel<T>::m_root);
 			// remove
 			this->removeWrapper(wrapper);
-		}
+        })
 	);
 	if (conn)
 	{
@@ -81,19 +81,19 @@ inline void QUaTableModel<T>::addNode(T node)
 	}
 }
 
-template<class T>
+template<typename T>
 inline void QUaTableModel<T>::addNodes(const QList<T>& nodes)
 {
 	for (auto node : nodes)
 	{
-		this->addNode(node);
-	}
+        this->addNode(node);
+    }
 }
 
-template<class T>
+template<typename T>
 inline bool QUaTableModel<T>::removeNode(T node)
 {
-	auto wrapper = m_root->childByNode(node);
+    auto wrapper = QUaModel<T>::m_root->childByNode(node);
 	if (!wrapper)
 	{
 		return false;
@@ -103,44 +103,44 @@ inline bool QUaTableModel<T>::removeNode(T node)
 	return true;
 }
 
-template<class T>
+template<typename T>
 inline void QUaTableModel<T>::clear()
 {
 	this->beginResetModel();
-	while (m_root->children().count() > 0)
+    while (QUaModel<T>::m_root->children().count() > 0)
 	{
-		auto wrapper = m_root->children().takeFirst();
+        auto wrapper = QUaModel<T>::m_root->children().takeFirst();
 		// NOTE : QUaNodeWrapper destructor removes connections
 		delete wrapper;
 	}
 	this->endResetModel();
 }
 
-template<class T>
-inline void QUaTableModel<T>::removeWrapper(QUaModel<T>::QUaNodeWrapper* wrapper)
+template<typename T>
+inline void QUaTableModel<T>::removeWrapper(typename QUaModel<T>::QUaNodeWrapper* wrapper)
 {
 	// only use indexes created by model
 	int row = wrapper->index().row();
-	QModelIndex index = m_root->index();
+    QModelIndex index = QUaModel<T>::m_root->index();
 	// when deleteing a node of type T that has children of type T, 
 	// QObject::destroyed is triggered from top to bottom without 
 	// giving a change for the model to update its indices and rows wont match
-	if (row >= m_root->children().count() ||
-		wrapper != m_root->children().at(row))
+    if (row >= QUaModel<T>::m_root->children().count() ||
+        wrapper != QUaModel<T>::m_root->children().at(row))
 	{
 		// force reindexing
-		for (int r = 0; r < m_root->children().count(); r++)
+        for (int r = 0; r < QUaModel<T>::m_root->children().count(); r++)
 		{
 			this->index(r, 0, index);
 		}
 		row = wrapper->index().row();
 	}
-	Q_ASSERT(this->checkIndex(this->index(row, 0, index), CheckIndexOption::IndexIsValid));
-	Q_ASSERT(wrapper == m_root->children().at(row));
+    Q_ASSERT(this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid));
+    Q_ASSERT(wrapper == QUaModel<T>::m_root->children().at(row));
 	// notify views that row will be removed
 	this->beginRemoveRows(index, row, row);
 	// remove from parent
-	delete m_root->children().takeAt(row);
+    delete QUaModel<T>::m_root->children().takeAt(row);
 	// notify views that row removal has finished
 	this->endRemoveRows();
 }

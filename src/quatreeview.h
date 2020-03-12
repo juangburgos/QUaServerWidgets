@@ -42,8 +42,8 @@ inline QUaTreeView<N>::QUaTreeView(QWidget* parent) :
 template<typename N>
 inline void QUaTreeView<N>::setModel(QAbstractItemModel* model)
 {
-	QUaView<QUaTreeView, N>
-		::setModel<QTreeView>(model);
+    QUaView<QUaTreeView, N>
+        ::template setModel<QTreeView>(model);
 }
 
 template<typename N>
@@ -53,14 +53,14 @@ inline void QUaTreeView<N>::dataChanged(
     const QVector<int>& roles)
 {
 	QUaView<QUaTreeView, N>
-		::dataChanged<QTreeView>(topLeft, bottomRight, roles);
+        ::template dataChanged<QTreeView>(topLeft, bottomRight, roles);
 }
 
 template<typename N>
 inline void QUaTreeView<N>::keyPressEvent(QKeyEvent* event)
 {
 	QUaView<QUaTreeView, N>
-		::keyPressEvent<QTreeView>(event);
+        ::template keyPressEvent<QTreeView>(event);
 }
 
 #endif // QUATREEVIEW_H
