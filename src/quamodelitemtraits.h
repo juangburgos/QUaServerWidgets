@@ -12,7 +12,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
-	DestroyCallback(T& n, std::function<void(void)> callback)
+	DestroyCallback(T* n, std::function<void(void)> callback)
 	{
 		Q_UNUSED(n);
 		Q_UNUSED(callback);
@@ -31,7 +31,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
-	NewChildCallback(T& n, std::function<void(T&)> callback)
+	NewChildCallback(T* n, std::function<void(T&)> callback)
 	{
 		Q_UNUSED(n);
 		Q_UNUSED(callback);
@@ -50,7 +50,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, QList<T>>::type
-	GetChildren(const T& n)
+	GetChildren(const T* n)
 	{
 		Q_UNUSED(n);
 		return QList<T>();
@@ -67,7 +67,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
-	IsValid(const T& n)
+	IsValid(const T* n)
 	{
 		return n;
 	}
@@ -89,7 +89,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
-	IsEqual(const T& n1, const T& n2)
+	IsEqual(const T* n1, const T* n2)
 	{
 		return n1 == n2;
 	}
@@ -104,7 +104,7 @@ public:
 	// default implementation if T is type
 	template<typename T> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
-	SetData(T& n, const int &column, const QVariant& value)
+	SetData(T* n, const int &column, const QVariant& value)
 	{
 		Q_UNUSED(n);
 		Q_UNUSED(column);

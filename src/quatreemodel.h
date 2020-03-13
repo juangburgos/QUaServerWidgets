@@ -79,6 +79,9 @@ inline void QUaTreeModel<T>::bindRecursivelly(
     // subscribe to node removed
     auto conn = QUaModelItemTraits::DestroyCallback<T>(wrapper->node(),
         static_cast<std::function<void(void)>>([this, wrapper]() {
+// NOTE : cannot queue or fuck up node delete with children on tree
+// NOTE : cannot process events after of fuck up ua server
+// NOTE : cannot call multiple QUaModelItemTraits::DestroyCallback in a loop of fuck up indexes
         Q_CHECK_PTR(wrapper);
         if (wrapper == QUaModel<T>::m_root)
         {

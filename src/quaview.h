@@ -26,7 +26,21 @@ public:
 	);
 	void removeColumnEditor(const int& column);
 
+	// signature : void(QList<N>&)
+	template <typename M>
+	void setDeleteCallback(const M& deleteCallback);
+	// signature : QMimeData*(const QList<const N>&)
+	template <typename M>
+	void setCopyCallback(const M& copyCallback);
+	// signature : void(const QList<N>&, const QMimeData*)
+	template <typename M>
+	void setPasteCallback(const M& pasteCallback);
+
 protected:
+	// copy to avoid dynamic-casting all the time
+	QUaModel<N>* m_model;
+	QSortFilterProxyModel* m_proxy;
+
 	// internal editor callbacks
 	struct ColumnEditor
 	{
@@ -35,6 +49,13 @@ protected:
 		std::function<void(QWidget*, N)>     m_updateDataCallback;
 	};
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
+
+	// internal keyboard events callbacks
+	std::function<void(QList<N>&)>                         m_funcHandleDelete;
+	std::function<QMimeData*(const QList<N>&)>             m_funcHandleCopy;
+	std::function<void(const QList<N>&, const QMimeData*)> m_funcHandlePaste;
+
+	QList<N> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
 
 template<typename N>
@@ -67,6 +88,55 @@ inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::t
 	m_mapEditorFuncs.remove(column);
 }
 
+template<typename N>
+inline QList<N> QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+	::nodesFromIndexes(const QModelIndexList& indexes) const
+{
+	QList<N> nodes;
+	for (auto index : indexes)
+	{
+		index = m_proxy ? m_proxy->mapToSource(index) : index;
+		auto node = m_model->nodeFromIndex(index);
+		if (nodes.contains(node))
+		{
+			continue;
+		}
+		nodes << node;
+	}
+	return nodes;
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+	::setDeleteCallback(const M& deleteCallback)
+{
+	m_funcHandleDelete = [deleteCallback](QList<N>& nodes) {
+		deleteCallback(nodes);
+	};
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+	::setCopyCallback(const M& copyCallback)
+{
+	m_funcHandleCopy = [copyCallback](const QList<N>& nodes) {
+		return copyCallback(nodes);
+	};
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+	::setPasteCallback(const M& pasteCallback)
+{
+	m_funcHandlePaste = [pasteCallback](const QList<N>& nodes, const QMimeData* mime) {
+		return pasteCallback(nodes, mime);
+	};
+}
+
+
 // instance specialization
 template<typename N>
 class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
@@ -74,30 +144,51 @@ class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 public:
 	void setColumnEditor(
 		const int& column,
-		std::function<QWidget*(QWidget*, const N&)> initEditorCallback,
-		std::function<void(QWidget*, const N&)>     updateEditorCallback,
-		std::function<void(QWidget*, N&)>           updateDataCallback
+		std::function<QWidget*(QWidget*, N*)> initEditorCallback,
+		std::function<void(QWidget*, N*)>     updateEditorCallback,
+		std::function<void(QWidget*, N*)>           updateDataCallback
 	);
 	void removeColumnEditor(const int& column);
 
+	// signature : 
+	template <typename M>
+	void setDeleteCallback(const M& deleteCallback);
+	// signature : 
+	template <typename M>
+	void setCopyCallback(const M& copyCallback);
+	// signature : 
+	template <typename M>
+	void setPasteCallback(const M& pasteCallback);
+
 protected:
+	// copy to avoid dynamic-casting all the time
+	QUaModel<N>* m_model;
+	QSortFilterProxyModel* m_proxy;
+
 	// internal editor callbacks
 	struct ColumnEditor
 	{
-		std::function<QWidget*(QWidget*, const N&)> m_initEditorCallback;
-		std::function<void(QWidget*, const N&)>     m_updateEditorCallback;
-		std::function<void(QWidget*, N&)>           m_updateDataCallback;
+		std::function<QWidget*(QWidget*, N*)> m_initEditorCallback;
+		std::function<void(QWidget*, N*)>     m_updateEditorCallback;
+		std::function<void(QWidget*, N*)>     m_updateDataCallback;
 	};
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
+
+	// internal keyboard events callbacks
+	std::function<void(QList<N*>&)>                         m_funcHandleDelete;
+	std::function<QMimeData*(const QList<N*>&)>             m_funcHandleCopy;
+	std::function<void(const QList<N*>&, const QMimeData*)> m_funcHandlePaste;
+
+	QList<N*> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
 
 template<typename N>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 ::setColumnEditor(
 	const int& column,
-	std::function<QWidget*(QWidget*, const N&)> initEditorCallback,
-	std::function<void(QWidget*, const N&)>     updateEditorCallback,
-	std::function<void(QWidget*, N&)>           updateDataCallback
+	std::function<QWidget*(QWidget*, N*)> initEditorCallback,
+	std::function<void(QWidget*, N*)>     updateEditorCallback,
+	std::function<void(QWidget*, N*)>     updateDataCallback
 )
 {
 	Q_ASSERT(column >= 0);
@@ -116,9 +207,57 @@ inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::
 
 template<typename N>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
-::removeColumnEditor(const int& column)
+	::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
+}
+
+template<typename N>
+inline QList<N*> QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+	::nodesFromIndexes(const QModelIndexList& indexes) const
+{
+	QList<N*> nodes;
+	for (auto index : indexes)
+	{
+		index = m_proxy ? m_proxy->mapToSource(index) : index;
+		auto node = m_model->nodeFromIndex(index);
+		if (nodes.contains(node))
+		{
+			continue;
+		}
+		nodes << node;
+	}
+	return nodes;
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+	::setDeleteCallback(const M& deleteCallback)
+{
+	m_funcHandleDelete = [deleteCallback](QList<N*>& nodes) {
+		deleteCallback(nodes);
+	};
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+	::setCopyCallback(const M& copyCallback)
+{
+	m_funcHandleCopy = [copyCallback](const QList<N*>& nodes) {
+		return copyCallback(nodes);
+	};
+}
+
+template<typename N>
+template<typename M>
+inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+	::setPasteCallback(const M& pasteCallback)
+{
+	m_funcHandlePaste = [pasteCallback](const QList<N*>& nodes, const QMimeData* mime) {
+		return pasteCallback(nodes, mime);
+	};
 }
 
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism
@@ -131,19 +270,9 @@ public:
 	template <class B>
 	void setModel(QAbstractItemModel* model);
 
-	// signature : void(QList<N>&)
-	template <typename M>
-	void setDeleteCallback(const M& deleteCallback);
+	
 	void clearDeleteCallback();
-
-	// signature : QMimeData*(const QList<N>&)
-	template <typename M>
-	void setCopyCallback(const M& copyCallback);
 	void clearCopyCallback();
-
-	// signature : void(const QList<N>&, const QMimeData*)
-	template <typename M>
-	void setPasteCallback(const M& pasteCallback);
 	void clearPasteCallback();
 
 	// Inheirted class - Qt API:
@@ -162,16 +291,6 @@ public:
 
 protected:
 	T* m_thiz;
-	// copy to avoid dynamic-casting all the time
-	QUaModel<N>* m_model;
-	QSortFilterProxyModel* m_proxy;
-
-	// internal keyboard events callbacks
-	std::function<void(QList<N>&)> m_funcHandleDelete;
-	std::function<QMimeData*(const QList<N>&)> m_funcHandleCopy;
-	std::function<void(const QList<N>&, const QMimeData*)> m_funcHandlePaste;
-
-	QList<N> nodesFromIndexes(const QModelIndexList& indexes) const;
 
 	// internal delegate
 	class QUaItemDelegate : public QStyledItemDelegate
@@ -237,42 +356,15 @@ inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 }
 
 template<typename T, typename N>
-template<typename M>
-inline void QUaView<T, N>::setDeleteCallback(const M& deleteCallback)
-{
-	m_funcHandleDelete = [deleteCallback](QList<N>& nodes) {
-		return deleteCallback(nodes);
-	};
-}
-
-template<typename T, typename N>
 inline void QUaView<T, N>::clearDeleteCallback()
 {
 	m_funcHandleDelete = nullptr;
 }
 
 template<typename T, typename N>
-template<typename M>
-inline void QUaView<T, N>::setCopyCallback(const M& copyCallback)
-{
-	m_funcHandleCopy = [copyCallback](const QList<N>& nodes) {
-		return copyCallback(nodes);
-	};
-}
-
-template<typename T, typename N>
 inline void QUaView<T, N>::clearCopyCallback()
 {
 	m_funcHandleCopy = nullptr;
-}
-
-template<typename T, typename N>
-template<typename M>
-inline void QUaView<T, N>::setPasteCallback(const M& pasteCallback)
-{
-	m_funcHandlePaste = [pasteCallback](const QList<N>& nodes, const QMimeData* mime) {
-		return pasteCallback(nodes, mime);
-	};
 }
 
 template<typename T, typename N>
@@ -321,8 +413,8 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 			m_thiz->B::keyPressEvent(event);
 			return;
 		}
-		QList<N> nodes = this->nodesFromIndexes(indexes);
 		// call delete callback and exit
+		auto nodes = this->nodesFromIndexes(indexes);
 		m_funcHandleDelete(nodes);
 		return;
 	}
@@ -335,8 +427,8 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 			m_thiz->B::keyPressEvent(event);
 			return;
 		}
-		QList<N> nodes = this->nodesFromIndexes(indexes);
 		// call copy callback and exit
+		auto nodes = this->nodesFromIndexes(indexes);
 		auto mime = m_funcHandleCopy(nodes);
 		if (mime)
 		{
@@ -353,34 +445,18 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 			m_thiz->B::keyPressEvent(event);
 			return;
 		}
-		QList<N> nodes = this->nodesFromIndexes(indexes);
 		// call paste callback and exit
-		m_funcHandlePaste(nodes, QApplication::clipboard()->mimeData());
+		auto nodes = this->nodesFromIndexes(indexes);
+		m_funcHandlePaste(
+			nodes,
+			QApplication::clipboard()->mimeData()
+		);
 		return;
 	}
 	// call base class method
 	m_thiz->B::keyPressEvent(event);
 	return;
 }
-
-template<typename T, typename N>
-inline QList<N> QUaView<T, N>::nodesFromIndexes(const QModelIndexList &indexes) const
-{
-	QList<N> nodes;
-	for (auto index : indexes)
-	{
-		index = m_proxy ? m_proxy->mapToSource(index) : index;
-		auto node = m_model->nodeFromIndex(index);
-		if (nodes.contains(node))
-		{
-			continue;
-		}
-		nodes << node;
-	}
-	return nodes;
-}
-
-
 
 template<typename T, typename N>
 inline QUaView<T, N>::QUaItemDelegate::QUaItemDelegate(QObject* parent)
@@ -442,5 +518,4 @@ inline void QUaView<T, N>::QUaItemDelegate::setModelData(
 }
 
 #endif // QUAVIEW_H
-
 

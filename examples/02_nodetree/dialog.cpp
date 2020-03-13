@@ -184,14 +184,17 @@ void Dialog::setupTreeNodes()
 
     // setup model column data sources
     m_modelNodes.setColumnDataSource(0, tr("Display Name"), 
+    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->displayName();
     }/* second callback is only necessary for data that changes */);
     m_modelNodes.setColumnDataSource(1, tr("Node Id"), 
+    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->nodeId();
     });
     m_modelNodes.setColumnDataSource(2, tr("Value"), 
+    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables
@@ -204,7 +207,8 @@ void Dialog::setupTreeNodes()
         Q_CHECK_PTR(var);
         return var->value();
     },
-    [](QUaNode * node, std::function<void()> changeCallback) {
+    (std::function<QMetaObject::Connection(QUaNode*, std::function<void(void)>)>)
+    [](QUaNode * node, std::function<void(void)> changeCallback) {
         QString strType(node->metaObject()->className());
         // only print value for variables
         if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
@@ -219,6 +223,7 @@ void Dialog::setupTreeNodes()
             changeCallback();
         });
     },
+    (std::function<bool(QUaNode*)>)
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only edit value for variables
@@ -292,7 +297,7 @@ void Dialog::setupTreeNodes()
 template<>
 inline QMetaObject::Connection
 QUaModelItemTraits::NewChildCallback<QUaLog>(
-    QUaLog &log, 
+    QUaLog *log, 
     std::function<void(QUaLog&)> callback)
 {
     Q_CHECK_PTR(g_server);
@@ -309,25 +314,74 @@ QUaModelItemTraits::NewChildCallback<QUaLog>(
     });
 }
 
+QHash<
+    QUaLog*, 
+    QList<std::function<void(void)>>
+> g_hashDestroyLog;
+
+template<>
+inline QMetaObject::Connection
+QUaModelItemTraits::DestroyCallback<QUaLog>(
+    QUaLog* log,
+    std::function<void(void)> callback)
+{
+    g_hashDestroyLog[log] << callback;
+    return QMetaObject::Connection();
+}
+
 void Dialog::setupTreeLogs()
 {
     m_modelLogs.setRootNode(QUaLog());
     // setup model column data sources
     m_modelLogs.setColumnDataSource(0, tr("Timestamp"),
-    [](QUaLog log) {
-        return log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog * log) {
+        return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(1, tr("Level"),
-    [](QUaLog log) {
-        return logLevelMetaEnum.valueToKey(static_cast<int>(log.level));
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog* log) {
+        return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(2, tr("Category"),
-    [](QUaLog log) {
-        return logCategoryMetaEnum.valueToKey(static_cast<int>(log.category));
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog* log) {
+        return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(3, tr("Message"),
-    [](QUaLog log) {
-        return log.message;
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog* log) {
+        return log->message;
+    });
+    // support delete and copy
+    ui->treeViewLog->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->treeViewLog->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->treeViewLog->setDeleteCallback(
+    [this](QList<QUaLog*> &logs) {
+        while (logs.count() > 0)
+        {
+            Q_ASSERT(g_hashDestroyLog.contains(logs.first()));
+            for (auto callback : g_hashDestroyLog.take(logs.takeFirst()))
+            {
+                m_modelLogs.execLater(callback);
+                //callback();
+            }
+        }
+    });
+    ui->treeViewLog->setCopyCallback(
+    [](const QList<QUaLog*> &logs) {
+        auto mime = new QMimeData();
+        for (auto log : logs)
+        {
+            mime->setText(
+                mime->text() + QString("[%1] [%2] [%3] : %4.\n")
+                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
+                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
+                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
+                .arg(QString(log->message))
+            );
+        }
+        return mime;
     });
     // allow sorting
     m_proxyLogs.setSourceModel(&m_modelLogs);

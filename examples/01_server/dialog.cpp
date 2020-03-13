@@ -84,67 +84,72 @@ void Dialog::setupLogTable()
 {
     QObject::connect(&m_server, &QUaServer::logMessage, &m_modelLog,
     [this](const QUaLog& log) {
-        m_modelLog.addNode(log);
+        m_modelLog.addNode(QUaLog(log));
     });
     // setup model column data sources
     m_modelLog.setColumnDataSource(0, tr("Timestamp"), 
-    [](QUaLog log) {
-        return log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog * log) {
+        return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(1, tr("Level"), 
-    [](QUaLog log) {
-        return logLevelMetaEnum.valueToKey(static_cast<int>(log.level));
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog * log) {
+        return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(2, tr("Category"),
-    [](QUaLog log) {
-        return logCategoryMetaEnum.valueToKey(static_cast<int>(log.category));
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog * log) {
+        return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(3, tr("Message"), 
-    [](QUaLog log) {
-        return log.message;
+    (std::function<QVariant(QUaLog*)>)
+    [](QUaLog * log) {
+        return log->message;
     },
-    nullptr, /* no data changes, but editable just for testing */
-    [](QUaLog log) {
+    (std::function<QMetaObject::Connection(QUaLog*, std::function<void(void)>)>)nullptr, /* no data changes, but editable just for testing */
+    (std::function<bool(QUaLog*)>)
+    [](QUaLog * log) {
         Q_UNUSED(log);
         return true;
     });
 
     // log message editable just for testing
     ui->tableViewLogs->setColumnEditor(3, 
-    [](QWidget *parent, const QUaLog& log) {
+    [](QWidget *parent, QUaLog * log) {
         Q_UNUSED(log);
         return new QLineEdit(parent);
     }, 
-    [](QWidget* w, const QUaLog& log) {
+    [](QWidget* w, QUaLog * log) {
         auto le = qobject_cast<QLineEdit*>(w);
-        le->setText(log.message);
+        le->setText(log->message);
     },
-    [](QWidget *w, QUaLog &log) {
+    [](QWidget *w, QUaLog * log) {
         auto le = qobject_cast<QLineEdit*>(w);
-        log.message = le->text().toUtf8();
+        log->message = le->text().toUtf8();
     });
 
     // support delete and copy
     ui->tableViewLogs->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableViewLogs->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewLogs->setDeleteCallback(
-    [this](QList<QUaLog> &logs) {
+    [this](QList<QUaLog*> &logs) {
         while (logs.count() > 0)
         {
             m_modelLog.removeNode(logs.takeFirst());
         }
     });
     ui->tableViewLogs->setCopyCallback(
-    [](const QList<QUaLog> &logs) {
+    [](const QList<QUaLog*> &logs) {
         auto mime = new QMimeData();
         for (auto log : logs)
         {
             mime->setText(
                 mime->text() + QString("[%1] [%2] [%3] : %4.\n")
-                .arg(log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
-                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
-                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log.category)))
-                .arg(QString(log.message))
+                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
+                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
+                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
+                .arg(QString(log->message))
             );
         }
         return mime;
@@ -169,26 +174,32 @@ void Dialog::setupSessionTable()
     });
     // setup model column data sources
     m_modelSession.setColumnDataSource(0, tr("Timestamp"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(1, tr("Id"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->sessionId();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(2, tr("Name"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->applicationName();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(3, tr("Address"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->address();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(4, tr("Port"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->port();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(5, tr("Username"),
+    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->userName();
     }/* other callbacks for data that changes or editable */);
