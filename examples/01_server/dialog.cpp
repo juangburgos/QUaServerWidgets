@@ -88,22 +88,18 @@ void Dialog::setupLogTable()
     });
     // setup model column data sources
     m_modelLog.setColumnDataSource(0, tr("Timestamp"), 
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog * log) {
         return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(1, tr("Level"), 
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog * log) {
         return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(2, tr("Category"),
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog * log) {
         return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(3, tr("Message"), 
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog * log) {
         return log->message;
     },
@@ -174,32 +170,26 @@ void Dialog::setupSessionTable()
     });
     // setup model column data sources
     m_modelSession.setColumnDataSource(0, tr("Timestamp"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(1, tr("Id"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->sessionId();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(2, tr("Name"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->applicationName();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(3, tr("Address"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->address();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(4, tr("Port"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->port();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(5, tr("Username"),
-    (std::function<QVariant(const QUaSession*)>)
     [](const QUaSession* session) {
         return session->userName();
     }/* other callbacks for data that changes or editable */);

@@ -10,7 +10,7 @@ template<>
 inline QMetaObject::Connection 
 QUaModelItemTraits::DestroyCallback<QUaNode*>(
     QUaNode* node, 
-    std::function<void(void)> callback)
+    const std::function<void(void)> &callback)
 {
     if (!node)
     {
@@ -26,7 +26,7 @@ template<>
 inline QMetaObject::Connection
 QUaModelItemTraits::NewChildCallback<QUaNode*>(
     QUaNode* node, 
-    std::function<void(QUaNode*)> callback)
+    const std::function<void(QUaNode*)> &callback)
 {
     if (!node)
     {

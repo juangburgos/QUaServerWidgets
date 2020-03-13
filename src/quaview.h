@@ -18,23 +18,28 @@ template<typename N>
 class QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
 {
 public:
+	template<
+		typename M1 = const std::function<QWidget*(QWidget*, N)>&,
+		typename M2 = const std::function<void(QWidget*, N)>&,
+		typename M3 = const std::function<void(QWidget*, N)&>
+	>
 	void setColumnEditor(
 		const int& column,
-		std::function<QWidget*(QWidget*, N)> initEditorCallback,
-		std::function<void(QWidget*, N)>     updateEditorCallback,
-		std::function<void(QWidget*, N)>     updateDataCallback
+		M1 &&initEditorCallback,
+		M2 &&updateEditorCallback,
+		M3 &&updateDataCallback
 	);
 	void removeColumnEditor(const int& column);
 
 	// signature : void(QList<N>&)
-	template <typename M>
-	void setDeleteCallback(const M& deleteCallback);
+	template <typename M = const std::function<void(QList<N>&)>&>
+	void setDeleteCallback(M &&deleteCallback);
 	// signature : QMimeData*(const QList<const N>&)
-	template <typename M>
-	void setCopyCallback(const M& copyCallback);
+	template <typename M = const std::function<QMimeData * (const QList<N>&)>&>
+	void setCopyCallback(M &&copyCallback);
 	// signature : void(const QList<N>&, const QMimeData*)
-	template <typename M>
-	void setPasteCallback(const M& pasteCallback);
+	template <typename M = const std::function<void(const QList<N>&, const QMimeData*)>&>
+	void setPasteCallback(M &&pasteCallback);
 
 protected:
 	// copy to avoid dynamic-casting all the time
@@ -59,13 +64,13 @@ protected:
 };
 
 template<typename N>
+template<typename M1, typename M2, typename M3>
 inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
-	::setColumnEditor(
-		const int& column, 
-		std::function<QWidget*(QWidget*, N)> initEditorCallback, 
-		std::function<void(QWidget*, N)>     updateEditorCallback, 
-		std::function<void(QWidget*, N)>     updateDataCallback
-)
+::setColumnEditor(
+	const int& column,
+	M1&& initEditorCallback,
+	M2&& updateEditorCallback,
+	M3&& updateDataCallback)
 {
 	Q_ASSERT(column >= 0);
 	if (column < 0)
@@ -109,31 +114,25 @@ inline QList<N> QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
-	::setDeleteCallback(const M& deleteCallback)
+	::setDeleteCallback(M &&deleteCallback)
 {
-	m_funcHandleDelete = [deleteCallback](QList<N>& nodes) {
-		deleteCallback(nodes);
-	};
+	m_funcHandleDelete = deleteCallback;
 }
 
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
-	::setCopyCallback(const M& copyCallback)
+	::setCopyCallback(M &&copyCallback)
 {
-	m_funcHandleCopy = [copyCallback](const QList<N>& nodes) {
-		return copyCallback(nodes);
-	};
+	m_funcHandleCopy = copyCallback;
 }
 
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
-	::setPasteCallback(const M& pasteCallback)
+	::setPasteCallback(M &&pasteCallback)
 {
-	m_funcHandlePaste = [pasteCallback](const QList<N>& nodes, const QMimeData* mime) {
-		return pasteCallback(nodes, mime);
-	};
+	m_funcHandlePaste = pasteCallback;
 }
 
 
@@ -142,23 +141,28 @@ template<typename N>
 class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 {
 public:
+	template<
+		typename M1 = const std::function<QWidget*(QWidget*, N*)>&,
+		typename M2 = const std::function<void(QWidget*, N*)>&,
+		typename M3 = const std::function<void(QWidget*, N*)&>
+	>
 	void setColumnEditor(
 		const int& column,
-		std::function<QWidget*(QWidget*, N*)> initEditorCallback,
-		std::function<void(QWidget*, N*)>     updateEditorCallback,
-		std::function<void(QWidget*, N*)>           updateDataCallback
+		M1 &&initEditorCallback,
+		M2 &&updateEditorCallback,
+		M3 &&updateDataCallback
 	);
 	void removeColumnEditor(const int& column);
 
 	// signature : 
-	template <typename M>
-	void setDeleteCallback(const M& deleteCallback);
+	template <typename M = const std::function<void(QList<N*>&)>&>
+	void setDeleteCallback(M &&deleteCallback);
 	// signature : 
-	template <typename M>
-	void setCopyCallback(const M& copyCallback);
+	template <typename M = const std::function<QMimeData * (const QList<N*>&)>&>
+	void setCopyCallback(M &&copyCallback);
 	// signature : 
-	template <typename M>
-	void setPasteCallback(const M& pasteCallback);
+	template <typename M = const std::function<void(const QList<N*>&, const QMimeData*)>&>
+	void setPasteCallback(M &&pasteCallback);
 
 protected:
 	// copy to avoid dynamic-casting all the time
@@ -183,12 +187,13 @@ protected:
 };
 
 template<typename N>
+template<typename M1, typename M2, typename M3>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 ::setColumnEditor(
 	const int& column,
-	std::function<QWidget*(QWidget*, N*)> initEditorCallback,
-	std::function<void(QWidget*, N*)>     updateEditorCallback,
-	std::function<void(QWidget*, N*)>     updateDataCallback
+	M1 &&initEditorCallback,
+	M2 &&updateEditorCallback,
+	M3 &&updateDataCallback
 )
 {
 	Q_ASSERT(column >= 0);
@@ -233,31 +238,25 @@ inline QList<N*> QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::val
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
-	::setDeleteCallback(const M& deleteCallback)
+	::setDeleteCallback(M &&deleteCallback)
 {
-	m_funcHandleDelete = [deleteCallback](QList<N*>& nodes) {
-		deleteCallback(nodes);
-	};
+	m_funcHandleDelete = deleteCallback;
 }
 
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
-	::setCopyCallback(const M& copyCallback)
+	::setCopyCallback(M &&copyCallback)
 {
-	m_funcHandleCopy = [copyCallback](const QList<N*>& nodes) {
-		return copyCallback(nodes);
-	};
+	m_funcHandleCopy = copyCallback;
 }
 
 template<typename N>
 template<typename M>
 inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
-	::setPasteCallback(const M& pasteCallback)
+	::setPasteCallback(M &&pasteCallback)
 {
-	m_funcHandlePaste = [pasteCallback](const QList<N*>& nodes, const QMimeData* mime) {
-		return pasteCallback(nodes, mime);
-	};
+	m_funcHandlePaste = pasteCallback;
 }
 
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism

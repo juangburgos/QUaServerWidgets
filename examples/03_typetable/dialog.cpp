@@ -50,17 +50,14 @@ void Dialog::setupTable()
     m_model.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
     m_model.setColumnDataSource(0, tr("Display Name"), 
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->displayName();
     }/* second callback is only necessary for data that changes */);
     m_model.setColumnDataSource(1, tr("Node Id"),
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->nodeId();
     });
     m_model.setColumnDataSource(2, tr("Value"), 
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables

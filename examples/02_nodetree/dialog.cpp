@@ -184,17 +184,14 @@ void Dialog::setupTreeNodes()
 
     // setup model column data sources
     m_modelNodes.setColumnDataSource(0, tr("Display Name"), 
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->displayName();
     }/* second callback is only necessary for data that changes */);
     m_modelNodes.setColumnDataSource(1, tr("Node Id"), 
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         return node->nodeId();
     });
     m_modelNodes.setColumnDataSource(2, tr("Value"), 
-    (std::function<QVariant(QUaNode*)>)
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables
@@ -207,7 +204,6 @@ void Dialog::setupTreeNodes()
         Q_CHECK_PTR(var);
         return var->value();
     },
-    (std::function<QMetaObject::Connection(QUaNode*, std::function<void(void)>)>)
     [](QUaNode * node, std::function<void(void)> changeCallback) {
         QString strType(node->metaObject()->className());
         // only print value for variables
@@ -223,7 +219,6 @@ void Dialog::setupTreeNodes()
             changeCallback();
         });
     },
-    (std::function<bool(QUaNode*)>)
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only edit value for variables
@@ -298,7 +293,7 @@ template<>
 inline QMetaObject::Connection
 QUaModelItemTraits::NewChildCallback<QUaLog>(
     QUaLog *log, 
-    std::function<void(QUaLog&)> callback)
+    const std::function<void(QUaLog&)> &callback)
 {
     Q_CHECK_PTR(g_server);
     // valid logs do not have children
@@ -323,7 +318,7 @@ template<>
 inline QMetaObject::Connection
 QUaModelItemTraits::DestroyCallback<QUaLog>(
     QUaLog* log,
-    std::function<void(void)> callback)
+    const std::function<void(void)> &callback)
 {
     g_hashDestroyLog[log] << callback;
     return QMetaObject::Connection();
@@ -334,22 +329,18 @@ void Dialog::setupTreeLogs()
     m_modelLogs.setRootNode(QUaLog());
     // setup model column data sources
     m_modelLogs.setColumnDataSource(0, tr("Timestamp"),
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog * log) {
         return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(1, tr("Level"),
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog* log) {
         return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(2, tr("Category"),
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog* log) {
         return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(3, tr("Message"),
-    (std::function<QVariant(QUaLog*)>)
     [](QUaLog* log) {
         return log->message;
     });
@@ -364,7 +355,6 @@ void Dialog::setupTreeLogs()
             for (auto callback : g_hashDestroyLog.take(logs.takeFirst()))
             {
                 m_modelLogs.execLater(callback);
-                //callback();
             }
         }
     });
