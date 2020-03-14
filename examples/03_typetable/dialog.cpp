@@ -25,7 +25,9 @@ Dialog::Dialog(QWidget *parent)
     // setup server
     this->setupServer();
     // setup type table
-    this->setupTable();
+    this->setupTableTypes();
+    // setup categories tree
+    this->setupTreeCategories();
 }
 
 Dialog::~Dialog()
@@ -42,22 +44,22 @@ void Dialog::setupServer()
     m_server.start();
 }
 
-void Dialog::setupTable()
+void Dialog::setupTableTypes()
 {
     // setup model
-    m_model.bindType<QUaFolderObject>(&m_server);
-    m_model.bindType<QUaBaseObject>(&m_server);
-    m_model.bindType<QUaBaseDataVariable>(&m_server);
+    m_modelTypes.bindType<QUaFolderObject>(&m_server);
+    m_modelTypes.bindType<QUaBaseObject>(&m_server);
+    m_modelTypes.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
-    m_model.setColumnDataSource(0, tr("Display Name"), 
+    m_modelTypes.setColumnDataSource(0, tr("Display Name"), 
     [](QUaNode * node) {
         return node->displayName();
     }/* second callback is only necessary for data that changes */);
-    m_model.setColumnDataSource(1, tr("Node Id"),
+    m_modelTypes.setColumnDataSource(1, tr("Node Id"),
     [](QUaNode * node) {
         return node->nodeId();
     });
-    m_model.setColumnDataSource(2, tr("Value"), 
+    m_modelTypes.setColumnDataSource(2, tr("Value"), 
     [](QUaNode * node) {
         QString strType(node->metaObject()->className());
         // only print value for variables
@@ -99,7 +101,7 @@ void Dialog::setupTable()
     });
 
     // setup tree editor
-    ui->tableView->setColumnEditor(2,
+    ui->tableViewTypes->setColumnEditor(2,
     [](QWidget* parent, QUaNode* node) {
         Q_UNUSED(node);
         // create editor
@@ -126,7 +128,7 @@ void Dialog::setupTable()
     });
 
     // support delete, copy-paste
-    ui->tableView->setDeleteCallback(
+    ui->tableViewTypes->setDeleteCallback(
     [](QList<QUaNode*> &nodes) {
         while (!nodes.isEmpty())
         {
@@ -138,7 +140,7 @@ void Dialog::setupTable()
             delete node;
         }
     });
-    ui->tableView->setCopyCallback(
+    ui->tableViewTypes->setCopyCallback(
     [](const QList<QUaNode*> &nodes) {
         auto mime = new QMimeData();
         qDebug() << "copy callback";
@@ -153,7 +155,7 @@ void Dialog::setupTable()
         }
         return mime;
     });
-    ui->tableView->setPasteCallback(
+    ui->tableViewTypes->setPasteCallback(
     [](const QList<QUaNode*> &nodes, const QMimeData* mime) {
         qDebug() << "paste callback :" 
                  << (mime ? mime->text() : "no data");
@@ -164,9 +166,47 @@ void Dialog::setupTable()
     });
 
     // allow sorting
-    m_proxy.setSourceModel(&m_model);
-    ui->tableView->setModel(&m_proxy);
-    ui->tableView->setSortingEnabled(true);
+    m_proxyTypes.setSourceModel(&m_modelTypes);
+    ui->tableViewTypes->setModel(&m_proxyTypes);
+    ui->tableViewTypes->setSortingEnabled(true);
+}
+
+void Dialog::setupTreeCategories()
+{
+    // setup model
+    m_modelCategories.setColumnDataSource(0, tr("Display Name"),
+    [](QUaNode * node) {
+        return node->displayName();
+    }/* second callback is only necessary for data that changes */);
+    m_modelCategories.setColumnDataSource(1, tr("Node Id"),
+    [](QUaNode * node) {
+        return node->nodeId();
+    });
+    // folders category
+    m_modelCategories.addCategory("QUaFolderObject");
+    // add existing folders
+    auto folders = m_server.typeInstances<QUaFolderObject>();
+    for (auto folder : folders)
+    {
+        m_modelCategories.addNodeToCategory(
+            "QUaFolderObject",
+            folder
+        );
+    }
+    // add new folders
+    m_server.instanceCreated<QUaFolderObject>(
+    [this](QUaFolderObject* folder) {
+        m_modelCategories.addNodeToCategory(
+            "QUaFolderObject",
+            folder
+        );
+    });
+    m_modelCategories.addCategory("QUaBaseObject");
+    m_modelCategories.addCategory("QUaBaseDataVariable");
+
+
+
+    ui->treeViewCategories->setModel(&m_modelCategories);
 }
 
 void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
@@ -177,7 +217,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newFolder = obj->addFolderObject(QString("ns=1;s=%1").arg(strName));
+        auto newFolder = obj->addFolderObject(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
         newFolder->setBrowseName(strName);
         newFolder->setDisplayName(strName);
         this->addMethods(newFolder);
@@ -188,7 +228,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newObj = obj->addBaseObject(QString("ns=1;s=%1").arg(strName));
+        auto newObj = obj->addBaseObject(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
         newObj->setBrowseName(strName);
         newObj->setDisplayName(strName);
         this->addMethods(newObj);
@@ -199,7 +239,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newVar = obj->addBaseDataVariable(QString("ns=1;s=%1").arg(strName));
+        auto newVar = obj->addBaseDataVariable(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
         newVar->setBrowseName(strName);
         newVar->setDisplayName(strName);
         newVar->setWriteAccess(true);
@@ -208,15 +248,15 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
     if (isObjsFolder)
     {
         obj->addMethod("unbindAll", [this]() {
-            m_model.unbindAll();
+            m_modelTypes.unbindAll();
 	        return;
         });
         obj->addMethod("unbindQUaFolderObject", [this]() {
-            m_model.unbindType<QUaFolderObject>();
+            m_modelTypes.unbindType<QUaFolderObject>();
 	        return;
         });
         obj->addMethod("unbindQUaBaseObject", [this]() {
-            m_model.unbindType<QUaBaseObject>();
+            m_modelTypes.unbindType<QUaBaseObject>();
 	        return;
         });
         obj->addMethod("removeFromTable", [this](QString strNodeId) {
@@ -225,7 +265,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
             {
                 return QString("Node %1 does not exist.").arg(strNodeId);
             }
-            if (!m_model.removeNode(node))
+            if (!m_modelTypes.removeNode(node))
             {
                 return QString("Node %1 not in table.").arg(strNodeId);
             }

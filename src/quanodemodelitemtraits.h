@@ -6,7 +6,7 @@
 
 // specialized implementation for QUaNode*
 
-template<>
+template<> static
 inline QMetaObject::Connection 
 QUaModelItemTraits::DestroyCallback<QUaNode*>(
     QUaNode* node, 
@@ -22,7 +22,7 @@ QUaModelItemTraits::DestroyCallback<QUaNode*>(
     });
 }
 
-template<>
+template<> static
 inline QMetaObject::Connection
 QUaModelItemTraits::NewChildCallback<QUaNode*>(
     QUaNode* node, 
@@ -38,7 +38,7 @@ QUaModelItemTraits::NewChildCallback<QUaNode*>(
     });
 }
 
-template<>
+template<> static
 inline QList<QUaNode*> 
 QUaModelItemTraits::GetChildren<QUaNode*>(QUaNode* node)
 {

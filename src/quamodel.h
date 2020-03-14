@@ -188,6 +188,10 @@ protected:
 		typename std::enable_if<!std::is_pointer<X>::value, X*>::type
 		node();
 
+		void * userData() const;
+		void   setUserData(const void* data);
+		QUaModel<N>::QUaNodeWrapper* findChildByData(const void* childData) const;
+
         QModelIndex index() const;
         void setIndex(const QModelIndex &index);
 
@@ -210,6 +214,7 @@ protected:
     private:
         // internal data
         N m_node;
+		void * m_userData;
         // NOTE : need index to support model manipulation 
         //        cannot use createIndex outside Qt's API
         //        (doesnt work even inside a QAbstractItemModel member)
@@ -234,6 +239,8 @@ protected:
     void bindChangeCallbackForAllColumns(
         QUaNodeWrapper* wrapper,
         const bool& recursive = true);
+
+	void removeWrapper(typename QUaModel<N>::QUaNodeWrapper* wrapper);
 };
 
 template<class N>
@@ -523,28 +530,56 @@ inline void QUaModel<N>::bindChangeCallbackForAllColumns(
 	}
 }
 
+
+template<typename N>
+inline void QUaModel<N>::removeWrapper(typename QUaModel<N>::QUaNodeWrapper* wrapper)
+{
+	auto parent = wrapper->parent();
+	Q_CHECK_PTR(parent);
+	// only use indexes created by model
+	int row = wrapper->index().row();
+	QModelIndex index = parent->index();
+	// when deleteing a node of type N that has children of type N, 
+	// QObject::destroyed is triggered from top to bottom without 
+	// giving a change for the model to update its indices and rows wont match
+	if (row >= parent->children().count() ||
+		wrapper != parent->children().at(row))
+	{
+		// force reindexing
+		for (int r = 0; r < parent->children().count(); r++)
+		{
+			this->index(r, 0, index);
+		}
+		row = wrapper->index().row();
+	}
+	Q_ASSERT(this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid));
+	Q_ASSERT(wrapper == parent->children().at(row));
+	// notify views that row will be removed
+	this->beginRemoveRows(index, row, row);
+	// remove from parent
+	delete parent->children().takeAt(row);
+	// notify views that row removal has finished
+	this->endRemoveRows();
+}
+
 template<class N>
 inline QUaModel<N>::QUaNodeWrapper::QUaNodeWrapper(
 	N node, 
 	QUaModel<N>::QUaNodeWrapper* parent/* = nullptr*/,
 	const bool& recursive/* = true*/) :
 	m_node(node),
-	m_parent(parent)
+	m_parent(parent),
+	m_userData(nullptr)
 {
-	// m_node = null only supported if this is root (i.e. m_parent = null)
-	Q_ASSERT_X(QUaModelItemTraits::IsValid<N>(this->node()) ?
-		true : 
-		!m_parent, 
-		"QUaNodeWrapper", "Invalid node argument"
-	);
+	// m_node = nullptr must be supported for type model and category model
 	// NOTE : QUaModelItemTraits methods must handle nullptr (or invalid) m_node
 	// subscribe to node destruction, store connection to disconnect on destructor
 	QMetaObject::Connection conn = QUaModelItemTraits::DestroyCallback<N>(
-			this->node(),
-            [this]() {
-				this->m_node = QUaModelItemTraits::GetInvalid<N>();
-            }
-		);
+		this->node(),
+        [this]() {
+			this->m_node = QUaModelItemTraits::GetInvalid<N>();
+        }
+	);
 	if (conn)
 	{
 		m_connections << conn;
@@ -688,6 +723,30 @@ typename std::enable_if<!std::is_pointer<X>::value, X*>::type
 QUaModel<N>::QUaNodeWrapper::node()
 {
 	return &m_node;
+}
+
+template<typename N>
+inline void* QUaModel<N>::QUaNodeWrapper::userData() const
+{
+	return m_userData;
+}
+
+template<typename N>
+inline void QUaModel<N>::QUaNodeWrapper::setUserData(const void* data)
+{
+	m_userData = data;
+}
+
+template<typename N>
+inline typename QUaModel<N>::QUaNodeWrapper*
+QUaModel<N>::QUaNodeWrapper::findChildByData(const void* childData) const
+{
+	QUaModel<N>::QUaNodeWrapper* child = nullptr;
+	auto res = std::find_if(m_children.begin(), m_children.end(),
+	[childData](QUaModel<N>::QUaNodeWrapper* child) {
+			return child->userData() == childData;
+	});
+	return res == m_children.end() ? nullptr : *res;
 }
 
 template<class N>

@@ -25,7 +25,7 @@ public:
     void clear();
 
 protected:
-    void removeWrapper(typename QUaModel<N>::QUaNodeWrapper * wrapper);
+    
 };
 
 template<typename N>
@@ -33,8 +33,8 @@ inline QUaTableModel<N>::QUaTableModel(QObject* parent) :
 	QUaModel<N>(parent)
 {
     QUaModel<N>::m_root = new typename QUaModel<N>::QUaNodeWrapper(
-			QUaModelItemTraits::GetInvalid<N>()
-		);
+		QUaModelItemTraits::GetInvalid<N>()
+	);
 }
 
 template<typename N>
@@ -71,14 +71,13 @@ inline void QUaTableModel<N>::addNode(N node)
 	// bind callback for data change on each column
 	this->bindChangeCallbackForAllColumns(wrapper, false);
 	// subscribe to instance removed
-	// remove rows better be queued in the event loop
 	auto conn = QUaModelItemTraits::DestroyCallback<N>(wrapper->node(),
-        static_cast<std::function<void(void)>>([this, wrapper]() {
+        [this, wrapper]() {
 			Q_CHECK_PTR(wrapper);
             Q_ASSERT(QUaModel<N>::m_root);
 			// remove
 			this->removeWrapper(wrapper);
-        })
+        }
 	);
 	if (conn)
 	{
@@ -141,33 +140,5 @@ inline void QUaTableModel<N>::clear()
 	this->endResetModel();
 }
 
-template<typename N>
-inline void QUaTableModel<N>::removeWrapper(typename QUaModel<N>::QUaNodeWrapper* wrapper)
-{
-	// only use indexes created by model
-	int row = wrapper->index().row();
-    QModelIndex index = QUaModel<N>::m_root->index();
-	// when deleteing a node of type N that has children of type N, 
-	// QObject::destroyed is triggered from top to bottom without 
-	// giving a change for the model to update its indices and rows wont match
-    if (row >= QUaModel<N>::m_root->children().count() ||
-        wrapper != QUaModel<N>::m_root->children().at(row))
-	{
-		// force reindexing
-        for (int r = 0; r < QUaModel<N>::m_root->children().count(); r++)
-		{
-			this->index(r, 0, index);
-		}
-		row = wrapper->index().row();
-	}
-    Q_ASSERT(this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid));
-    Q_ASSERT(wrapper == QUaModel<N>::m_root->children().at(row));
-	// notify views that row will be removed
-	this->beginRemoveRows(index, row, row);
-	// remove from parent
-    delete QUaModel<N>::m_root->children().takeAt(row);
-	// notify views that row removal has finished
-	this->endRemoveRows();
-}
 
 #endif // QUATABLEMODEL_H

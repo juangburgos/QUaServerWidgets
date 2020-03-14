@@ -5,11 +5,15 @@
 #include <QMenu>
 
 #include <QUaServer>
-#include <QUaTypeModel>
+#include <QUaNodeTypeModel>
+#include <QUaCategoryModel>
 #include <QSortFilterProxyModel>
 #include <QUaTableView>
+#include <QUaTreeView>
 
-typedef QUaTableView<QUaNode*> QUaNodeTableView;
+typedef QUaTableView    <QUaNode*> QUaNodeTableView;
+typedef QUaTreeView     <QUaNode*> QUaCategoryTreeView;
+typedef QUaCategoryModel<QUaNode*> QUaNodeCategoryModel;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
@@ -27,13 +31,15 @@ private:
     Ui::Dialog *ui;
 
     void setupServer();
-    void setupTable();
+    void setupTableTypes();
+    void setupTreeCategories();
 
     void addMethods(QUaBaseObject * node, const bool &isObjsFolder = false);
 
-    QUaServer m_server;
-    QUaTypeModel m_model;
-    QSortFilterProxyModel m_proxy;
+    QUaServer             m_server;
+    QUaNodeTypeModel      m_modelTypes;
+    QSortFilterProxyModel m_proxyTypes;
+    QUaNodeCategoryModel  m_modelCategories;
 };
 
 #endif // DIALOG_H

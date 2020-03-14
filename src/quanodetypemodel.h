@@ -5,13 +5,13 @@
 #include <QUaTableModel>
 #include <QUaServer>
 
-class QUaTypeModel : public QUaTableModel<QUaNode*>
+class QUaNodeTypeModel : public QUaTableModel<QUaNode*>
 {
     Q_OBJECT
 
 public:
-    explicit QUaTypeModel(QObject *parent = nullptr);
-    ~QUaTypeModel();
+    explicit QUaNodeTypeModel(QObject *parent = nullptr);
+    ~QUaNodeTypeModel();
 
     template<typename T>
     void bindType(QUaServer* server);
@@ -26,8 +26,24 @@ private:
     QHash<QString, QMetaObject::Connection> m_connections;
 };
 
+inline QUaNodeTypeModel::QUaNodeTypeModel(QObject* parent)
+    : QUaTableModel<QUaNode*>(parent)
+{
+
+}
+
+inline QUaNodeTypeModel::~QUaNodeTypeModel()
+{
+    if (m_root)
+    {
+        this->unbindAll();
+        delete m_root;
+        m_root = nullptr;
+    }
+}
+
 template<typename T>
-inline void QUaTypeModel::bindType(QUaServer* server)
+inline void QUaNodeTypeModel::bindType(QUaServer* server)
 {
     auto metaObject = T::staticMetaObject;
     // check if OPC UA relevant
@@ -61,7 +77,7 @@ inline void QUaTypeModel::bindType(QUaServer* server)
 }
 
 template<typename T>
-inline void QUaTypeModel::unbindType()
+inline void QUaNodeTypeModel::unbindType()
 {
     auto metaObject = T::staticMetaObject;
     // check if OPC UA relevant
@@ -99,6 +115,14 @@ inline void QUaTypeModel::unbindType()
     this->endResetModel();
 }
 
+inline void QUaNodeTypeModel::unbindAll()
+{
+    while (m_connections.count() > 0)
+    {
+        QObject::disconnect(m_connections.take(m_connections.begin().key()));
+    }
+    this->clear();
+}
 
 #endif // QUATYPEMODEL_H
 

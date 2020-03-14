@@ -35,10 +35,10 @@ public:
 	template <typename M = const std::function<void(QList<N>&)>&>
 	void setDeleteCallback(M &&deleteCallback);
 	// signature : QMimeData*(const QList<const N>&)
-	template <typename M = const std::function<QMimeData * (const QList<N>&)>&>
+	template <typename M = const std::function<QMimeData*(QList<N>&)>&>
 	void setCopyCallback(M &&copyCallback);
-	// signature : void(const QList<N>&, const QMimeData*)
-	template <typename M = const std::function<void(const QList<N>&, const QMimeData*)>&>
+	// signature : void(QList<N>&, const QMimeData*)
+	template <typename M = const std::function<void(QList<N>&, const QMimeData*)>&>
 	void setPasteCallback(M &&pasteCallback);
 
 protected:
@@ -56,9 +56,9 @@ protected:
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
 
 	// internal keyboard events callbacks
-	std::function<void(QList<N>&)>                         m_funcHandleDelete;
-	std::function<QMimeData*(const QList<N>&)>             m_funcHandleCopy;
-	std::function<void(const QList<N>&, const QMimeData*)> m_funcHandlePaste;
+	std::function<void(QList<N>&)>                   m_funcHandleDelete;
+	std::function<QMimeData*(QList<N>&)>             m_funcHandleCopy;
+	std::function<void(QList<N>&, const QMimeData*)> m_funcHandlePaste;
 
 	QList<N> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
@@ -158,10 +158,10 @@ public:
 	template <typename M = const std::function<void(QList<N*>&)>&>
 	void setDeleteCallback(M &&deleteCallback);
 	// signature : 
-	template <typename M = const std::function<QMimeData * (const QList<N*>&)>&>
+	template <typename M = const std::function<QMimeData*(QList<N*>&)>&>
 	void setCopyCallback(M &&copyCallback);
 	// signature : 
-	template <typename M = const std::function<void(const QList<N*>&, const QMimeData*)>&>
+	template <typename M = const std::function<void(QList<N*>&, const QMimeData*)>&>
 	void setPasteCallback(M &&pasteCallback);
 
 protected:
@@ -179,9 +179,9 @@ protected:
 	QMap<int, ColumnEditor> m_mapEditorFuncs;
 
 	// internal keyboard events callbacks
-	std::function<void(QList<N*>&)>                         m_funcHandleDelete;
-	std::function<QMimeData*(const QList<N*>&)>             m_funcHandleCopy;
-	std::function<void(const QList<N*>&, const QMimeData*)> m_funcHandlePaste;
+	std::function<void(QList<N*>&)>                   m_funcHandleDelete;
+	std::function<QMimeData*(QList<N*>&)>             m_funcHandleCopy;
+	std::function<void(QList<N*>&, const QMimeData*)> m_funcHandlePaste;
 
 	QList<N*> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
