@@ -42,7 +42,7 @@ inline bool operator==(const QUaLog& node1, const QUaLog& node2)
 }
 
 // overload to support default editor (QStyledItemDelegate::setEditorData)
-// implement either this or ui->tableViewLogs->setColumnEditor
+// implement either this or ui->myview->setColumnEditor
 // setColumnEditor has preference in case both implemented
 template<>
 inline bool

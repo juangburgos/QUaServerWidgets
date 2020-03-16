@@ -14,6 +14,9 @@ public:
 
 	void setModel(QAbstractItemModel* model) override;
 
+	// selected on source model
+	QModelIndexList selectedIndexesOrigin() const;
+
 	// Qt API:
 
 	// overwrite to ignore some calls to improve performance
@@ -39,6 +42,13 @@ inline void QUaTableView<N>::setModel(QAbstractItemModel* model)
 {
 	QUaView<QUaTableView, N>
         ::template setModel<QTableView>(model);
+}
+
+template<typename N>
+inline QModelIndexList QUaTableView<N>::selectedIndexesOrigin() const
+{
+	return QUaView<QUaTableView, N>
+		::template selectedIndexesOrigin<QTableView>();
 }
 
 template<typename N>

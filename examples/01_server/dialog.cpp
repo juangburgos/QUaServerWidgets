@@ -103,8 +103,7 @@ void Dialog::setupLogTable()
     [](QUaLog * log) {
         return log->message;
     },
-    (std::function<QMetaObject::Connection(QUaLog*, std::function<void(void)>)>)nullptr, /* no data changes, but editable just for testing */
-    (std::function<bool(QUaLog*)>)
+    nullptr, /* no data changes, but editable just for testing */
     [](QUaLog * log) {
         Q_UNUSED(log);
         return true;

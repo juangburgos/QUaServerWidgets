@@ -52,52 +52,22 @@ void Dialog::setupTableTypes()
     m_modelTypes.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
     m_modelTypes.setColumnDataSource(0, tr("Display Name"), 
-    [](QUaNode * node) {
-        return node->displayName();
+    [this](QUaNode * node) {
+        return this->dataCallback_0(node);
     }/* second callback is only necessary for data that changes */);
     m_modelTypes.setColumnDataSource(1, tr("Node Id"),
-    [](QUaNode * node) {
-        return node->nodeId();
+    [this](QUaNode * node) {
+        return this->dataCallback_1(node);
     });
     m_modelTypes.setColumnDataSource(2, tr("Value"), 
-    [](QUaNode * node) {
-        QString strType(node->metaObject()->className());
-        // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return QVariant();
-        }
-        auto var = qobject_cast<QUaBaseVariable*>(node);
-        Q_CHECK_PTR(var);
-        return var->value();
+    [this](QUaNode * node) {
+        return this->dataCallback_2(node);
     },
-    (std::function<QMetaObject::Connection(QUaNode*, std::function<void()>)>)
-    [](QUaNode * node, std::function<void()> changeCallback) {
-        QString strType(node->metaObject()->className());
-        // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return QMetaObject::Connection();
-        }
-        auto var = qobject_cast<QUaBaseVariable*>(node);
-        Q_CHECK_PTR(var);
-        return QObject::connect(var, &QUaBaseVariable::valueChanged,
-        [changeCallback]() {
-            changeCallback();
-        });
+    [this](QUaNode * node, std::function<void()> changeCallback) {
+        return this->changeCallback_2(node, changeCallback);
     },
-    (std::function<bool(QUaNode*)>)
-    [](QUaNode * node) {
-        QString strType(node->metaObject()->className());
-        // only edit value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return false;
-        }
-        return true;
+    [this](QUaNode * node) {
+        return this->editableCallback_2(node);
     });
 
     // setup tree editor
@@ -124,10 +94,15 @@ void Dialog::setupTableTypes()
         auto sbox = static_cast<QSpinBox*>(editor);
         auto var  = qobject_cast<QUaBaseVariable*>(node);
         Q_CHECK_PTR(var);
-        var->setValue(sbox->value());
+        auto value = sbox->value();
+        var->setValue(value);
+        // NOTE : emit manually because by default only emits if change through opc
+        emit var->valueChanged(value);
     });
 
     // support delete, copy-paste
+    ui->tableViewTypes->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewTypes->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewTypes->setDeleteCallback(
     [](QList<QUaNode*> &nodes) {
         while (!nodes.isEmpty())
@@ -175,38 +150,71 @@ void Dialog::setupTreeCategories()
 {
     // setup model
     m_modelCategories.setColumnDataSource(0, tr("Display Name"),
-    [](QUaNode * node) {
-        return node->displayName();
+    [this](QUaNode * node) {
+        return this->dataCallback_0(node);
     }/* second callback is only necessary for data that changes */);
     m_modelCategories.setColumnDataSource(1, tr("Node Id"),
-    [](QUaNode * node) {
-        return node->nodeId();
+    [this](QUaNode * node) {
+        return this->dataCallback_1(node);
     });
+    m_modelCategories.setColumnDataSource(2, tr("Value"),
+    [this](QUaNode * node) {
+        return this->dataCallback_2(node);
+    },
+    [this](QUaNode * node, std::function<void()> changeCallback) {
+        return this->changeCallback_2(node, changeCallback);
+    },
+    [this](QUaNode * node) {
+        return this->editableCallback_2(node);
+    });
+
     // folders category
-    m_modelCategories.addCategory("QUaFolderObject");
-    // add existing folders
-    auto folders = m_server.typeInstances<QUaFolderObject>();
-    for (auto folder : folders)
-    {
-        m_modelCategories.addNodeToCategory(
-            "QUaFolderObject",
-            folder
-        );
-    }
-    // add new folders
-    m_server.instanceCreated<QUaFolderObject>(
-    [this](QUaFolderObject* folder) {
-        m_modelCategories.addNodeToCategory(
-            "QUaFolderObject",
-            folder
-        );
+	this->addCategory<QUaFolderObject>();
+    // objects category
+    this->addCategory<QUaBaseObject>();
+    // variables category
+    this->addCategory<QUaBaseDataVariable>();
+
+    // support delete
+    ui->treeViewCategories->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->treeViewCategories->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->treeViewCategories->setDeleteCallback(
+    [this](QList<QUaNode*> &nodes) {
+        while (!nodes.isEmpty())
+        {
+            auto node = nodes.takeFirst();
+            // empty node means category selected
+            if (!node)
+            {
+                auto indexes = ui->treeViewCategories->selectedIndexesOrigin();
+                auto categories = m_modelCategories.indexesToCategories(indexes);
+                for (auto strCategory : categories)
+                {
+                    m_modelCategories.removeCategory(strCategory);
+                }
+                continue;
+            }
+            // NOTE : removed from model, not deleted
+            m_modelCategories.removeNode(node);
+        }
     });
-    m_modelCategories.addCategory("QUaBaseObject");
-    m_modelCategories.addCategory("QUaBaseDataVariable");
 
+    // support clear in tree context menu
+    ui->treeViewCategories->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(ui->treeViewCategories, &QTreeView::customContextMenuRequested, this,
+    [this](const QPoint& point) {
+        QMenu contextMenu(ui->treeViewCategories);
+        contextMenu.addAction(tr("Clear"), this,
+	    [this]() {
+                m_modelCategories.clear();
+	    });
+        contextMenu.exec(ui->treeViewCategories->viewport()->mapToGlobal(point));
+    });
 
-
-    ui->treeViewCategories->setModel(&m_modelCategories);
+    // allow sorting
+    m_proxyCategories.setSourceModel(&m_modelCategories);
+    ui->treeViewCategories->setModel(&m_proxyCategories);
+    ui->treeViewCategories->setSortingEnabled(true);
 }
 
 void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
@@ -277,5 +285,58 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         obj->deleteLater();
 	    return;
     });
+}
+
+QVariant Dialog::dataCallback_0(QUaNode* node)
+{
+    return node->displayName();
+}
+
+QVariant Dialog::dataCallback_1(QUaNode* node)
+{
+    return node->nodeId();
+}
+
+QVariant Dialog::dataCallback_2(QUaNode* node)
+{
+    QString strType(node->metaObject()->className());
+    // only print value for variables
+    if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+        strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+    {
+        return QVariant();
+    }
+    auto var = qobject_cast<QUaBaseVariable*>(node);
+    Q_CHECK_PTR(var);
+    return var->value();
+}
+
+QMetaObject::Connection Dialog::changeCallback_2(QUaNode* node, std::function<void(void)>& changeCallback)
+{
+    QString strType(node->metaObject()->className());
+    // only print value for variables
+    if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+        strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+    {
+        return QMetaObject::Connection();
+    }
+    auto var = qobject_cast<QUaBaseVariable*>(node);
+    Q_CHECK_PTR(var);
+    return QObject::connect(var, &QUaBaseVariable::valueChanged,
+    [changeCallback]() {
+        changeCallback();
+    });
+}
+
+bool Dialog::editableCallback_2(QUaNode* node)
+{
+    QString strType(node->metaObject()->className());
+    // only edit value for variables
+    if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
+        strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
+    {
+        return false;
+    }
+    return true;
 }
 

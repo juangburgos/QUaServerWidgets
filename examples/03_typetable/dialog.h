@@ -36,11 +36,48 @@ private:
 
     void addMethods(QUaBaseObject * node, const bool &isObjsFolder = false);
 
+    template<typename T>
+    void addCategory();
+
+    QVariant dataCallback_0(QUaNode* node);
+    QVariant dataCallback_1(QUaNode* node);
+    QVariant dataCallback_2(QUaNode* node);
+    
+    QMetaObject::Connection changeCallback_2(QUaNode* node, std::function<void(void)>& changeCallback);
+    
+    bool editableCallback_2(QUaNode* node);
+
+
     QUaServer             m_server;
     QUaNodeTypeModel      m_modelTypes;
     QSortFilterProxyModel m_proxyTypes;
     QUaNodeCategoryModel  m_modelCategories;
+    QSortFilterProxyModel m_proxyCategories;
 };
 
-#endif // DIALOG_H
+template<typename T>
+inline void Dialog::addCategory()
+{
+    auto className = T::staticMetaObject.className();
+    // T category
+    m_modelCategories.addCategory(className);
+    // add existing Ts
+    auto instances = m_server.typeInstances<T>();
+    for (auto instance : instances)
+    {
+        m_modelCategories.addNodeToCategory(
+            className,
+            instance
+        );
+    }
+    // add new Ts
+    m_server.instanceCreated<T>(
+    [this, className](T* instance) {
+        m_modelCategories.addNodeToCategory(
+            className,
+            instance
+        );
+    });
+}
 
+#endif // DIALOG_H

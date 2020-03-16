@@ -27,10 +27,37 @@ public:
 
     void addNodeToCategory(const QString& strCategory, N node);
 
+    template<typename X = N>
+    typename std::enable_if<std::is_pointer<X>::value, QString>::type
+    nodeCategory(N node);
+
+    template<typename X = N>
+    typename std::enable_if<!std::is_pointer<X>::value, QString>::type
+    nodeCategory(N* node);
+
+    template<typename X = N>
+    typename std::enable_if<std::is_pointer<X>::value, QList<N>>::type
+    nodesByCategory(const QString& strCategory);
+
+    template<typename X = N>
+    typename std::enable_if<!std::is_pointer<X>::value, QList<N*>>::type
+    nodesByCategory(const QString& strCategory);
+
+    template<typename X = N>
+    typename std::enable_if<std::is_pointer<X>::value, bool>::type
+    removeNode(N node);
+
+    template<typename X = N>
+    typename std::enable_if<!std::is_pointer<X>::value, bool>::type
+    removeNode(N* node);
+
+    QStringList indexesToCategories(const QModelIndexList& indexes) const;
+
+    void clear();
+
     // Qt required API:
 
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-
 
 private:
     QHash<
@@ -85,8 +112,11 @@ inline void QUaCategoryModel<N>::removeCategory(const QString& strCategory)
         return;
     }
     auto wrapper = QUaModel<N>::m_root->children().at(idx);
-    // use internal method
+    // use internal method (deletes wrapper)
     this->QUaModel<N>::removeWrapper(wrapper);
+    // remove from hash before deleting wrapper
+    Q_ASSERT(m_hashCategories.contains(wrapper));
+    m_hashCategories.remove(wrapper);
 }
 
 template<typename N>
@@ -145,6 +175,154 @@ inline void QUaCategoryModel<N>::addNodeToCategory(const QString& strCategory, N
         // NOTE : QUaNodeWrapper destructor removes connections
         wrapper->connections() << conn;
     }
+}
+
+template<typename N>
+template<typename X>
+inline 
+typename std::enable_if<std::is_pointer<X>::value, QString>::type 
+QUaCategoryModel<N>::nodeCategory(N node)
+{
+    for (auto strCategory : this->categories())
+    {
+        auto nodes = this->nodesByCategory(strCategory);
+        if (nodes.contains(node))
+        {
+            return strCategory;
+        }
+    }
+    return QString();
+}
+
+template<typename N>
+template<typename X>
+inline 
+typename std::enable_if<!std::is_pointer<X>::value, QString>::type 
+QUaCategoryModel<N>::nodeCategory(N* node)
+{
+    for (auto strCategory : this->categories())
+    {
+        auto nodes = this->nodesByCategory(strCategory);
+        if (nodes.contains(node))
+        {
+            return strCategory;
+        }
+    }
+    return QString();
+}
+
+template<typename N>
+template<typename X>
+inline 
+typename std::enable_if<std::is_pointer<X>::value, QList<N>>::type 
+QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
+{
+    QList<N> nodes;
+    auto category = getCategoryInternal(strCategory);
+    if (!category)
+    {
+        return nodes;
+    }
+    for (auto wrapper : category->children())
+    {
+        nodes << wrapper->node();
+    }
+    return nodes;
+}
+
+template<typename N>
+template<typename X>
+inline
+typename std::enable_if<!std::is_pointer<X>::value, QList<N*>>::type
+QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
+{
+    QList<N*> nodes;
+    auto category = getCategoryInternal(strCategory);
+    if (!category)
+    {
+        return nodes;
+    }
+    for (auto wrapper : category->children())
+    {
+        nodes << wrapper->node();
+    }
+    return nodes;
+}
+
+template<typename N>
+template<typename X>
+inline
+typename std::enable_if<std::is_pointer<X>::value, bool>::type
+QUaCategoryModel<N>::removeNode(N node)
+{
+    bool res = false;
+    // look for node in all categories
+    auto& categories = QUaModel<N>::m_root->children();
+    for (auto category : categories)
+    {
+        auto wrapper = category->childByNode(node);
+        if (!wrapper)
+        {
+            continue;
+        }
+        this->removeWrapper(wrapper);
+        res = true;
+    }
+    return res;
+}
+
+template<typename N>
+template<typename X>
+inline 
+typename std::enable_if<!std::is_pointer<X>::value, bool>::type 
+QUaCategoryModel<N>::removeNode(N* node)
+{
+    bool res = false;
+    // look for node in all categories
+    auto& categories = QUaModel<N>::m_root->children();
+    for (auto category : categories)
+    {
+        auto wrapper = category->childByNode(node);
+        if (!wrapper)
+        {
+            continue;
+        }
+        this->removeWrapper(wrapper);
+        res = true;
+    }
+    return res;
+}
+
+template<typename N>
+inline QStringList QUaCategoryModel<N>::indexesToCategories(
+        const QModelIndexList& indexes
+    ) const
+{
+    QStringList categories;
+    for (auto index : indexes)
+    {
+        // ignore root
+        if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+        {
+            continue;
+        }
+        // ignore nodes
+        auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
+        Q_CHECK_PTR(wrapper);
+        if (QUaModelItemTraits::IsValid<N>(wrapper->node()))
+        {
+            continue;
+        }
+        // must be category
+        Q_ASSERT(m_hashCategories.contains(wrapper));
+        // ignore repeated (selected indexes include all cols of same row)
+        if (categories.contains(m_hashCategories[wrapper]))
+        {
+            continue;
+        }
+        categories << m_hashCategories[wrapper];
+    }
+    return categories;
 }
 
 template<typename N>
@@ -238,6 +416,20 @@ inline typename QUaModel<N>::QUaNodeWrapper*
 QUaCategoryModel<N>::getCategoryInternal(const QString& strCategory)
 {
     return m_hashCategories.key(strCategory, nullptr);
+}
+
+template<typename N>
+inline void QUaCategoryModel<N>::clear()
+{
+    this->beginResetModel();
+    while (QUaModel<N>::m_root->children().count() > 0)
+    {
+        auto wrapper = QUaModel<N>::m_root->children().takeFirst();
+        // NOTE : QUaNodeWrapper destructor removes connections
+        delete wrapper;
+    }
+    m_hashCategories.clear();
+    this->endResetModel();
 }
 
 #endif // QUACATEGORYMODEL_H

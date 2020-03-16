@@ -140,5 +140,4 @@ inline void QUaTableModel<N>::clear()
 	this->endResetModel();
 }
 
-
 #endif // QUATABLEMODEL_H

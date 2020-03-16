@@ -102,6 +102,7 @@ inline QList<N> QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value
 	{
 		index = m_proxy ? m_proxy->mapToSource(index) : index;
 		auto node = m_model->nodeFromIndex(index);
+		// ignore repeated (selected indexes include all cols of same row)
 		if (nodes.contains(node))
 		{
 			continue;
@@ -141,6 +142,7 @@ template<typename N>
 class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
 {
 public:
+	// when double-click on editable item (editable allowed in model)
 	template<
 		typename M1 = const std::function<QWidget*(QWidget*, N*)>&,
 		typename M2 = const std::function<void(QWidget*, N*)>&,
@@ -154,13 +156,13 @@ public:
 	);
 	void removeColumnEditor(const int& column);
 
-	// signature : 
+	// when supr or delete key pressed
 	template <typename M = const std::function<void(QList<N*>&)>&>
 	void setDeleteCallback(M &&deleteCallback);
-	// signature : 
+	// when ctrl+c pressed
 	template <typename M = const std::function<QMimeData*(QList<N*>&)>&>
 	void setCopyCallback(M &&copyCallback);
-	// signature : 
+	// when ctrl+v pressed
 	template <typename M = const std::function<void(QList<N*>&, const QMimeData*)>&>
 	void setPasteCallback(M &&pasteCallback);
 
@@ -226,6 +228,7 @@ inline QList<N*> QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::val
 	{
 		index = m_proxy ? m_proxy->mapToSource(index) : index;
 		auto node = m_model->nodeFromIndex(index);
+		// ignore repeated (selected indexes include all cols of same row)
 		if (nodes.contains(node))
 		{
 			continue;
@@ -266,10 +269,9 @@ class QUaView : public QUaViewBase<N>
 public:
 	explicit QUaView();
 
-	template <class B>
+	template <typename B>
 	void setModel(QAbstractItemModel* model);
 
-	
 	void clearDeleteCallback();
 	void clearCopyCallback();
 	void clearPasteCallback();
@@ -277,7 +279,7 @@ public:
 	// Inheirted class - Qt API:
 
 	// overwrite to ignore some calls to improve performance
-	template <class B>
+	template <typename B>
 	void dataChanged(
 		const QModelIndex& topLeft,
 		const QModelIndex& bottomRight,
@@ -285,7 +287,7 @@ public:
 	);
 
 	// overwrite to handle keyboard events
-	template <class B>
+	template <typename B>
 	void keyPressEvent(QKeyEvent* event);
 
 protected:
@@ -313,6 +315,10 @@ protected:
 		QUaView* m_view;
 	};
 	friend class QUaView::QUaItemDelegate;
+
+	// selected on source model
+	template <typename B>
+	QModelIndexList selectedIndexesOrigin() const;
 };
 
 
@@ -329,7 +335,7 @@ inline QUaView<T, N>::QUaView()
 }
 
 template<typename T, typename N>
-template<class B>
+template<typename B>
 inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 {
 	auto nodeModel = dynamic_cast<QUaModel<N>*>(model);
@@ -355,6 +361,20 @@ inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 }
 
 template<typename T, typename N>
+template<typename B>
+inline QModelIndexList QUaView<T, N>::selectedIndexesOrigin() const
+{
+	auto indexes = m_thiz->B::selectedIndexes();
+	QModelIndexList res;
+	for (auto index : indexes)
+	{
+		index = m_proxy ? m_proxy->mapToSource(index) : index;
+		res << index;
+	}
+	return res;
+}
+
+template<typename T, typename N>
 inline void QUaView<T, N>::clearDeleteCallback()
 {
 	m_funcHandleDelete = nullptr;
@@ -373,7 +393,7 @@ inline void QUaView<T, N>::clearPasteCallback()
 }
 
 template<typename T, typename N>
-template<class B>
+template<typename B>
 inline void QUaView<T, N>::dataChanged(
 	const QModelIndex& topLeft,
 	const QModelIndex& bottomRight,
@@ -393,10 +413,10 @@ inline void QUaView<T, N>::dataChanged(
 }
 
 template<typename T, typename N>
-template<class B>
+template<typename B>
 inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 {
-	auto indexes = m_thiz->selectedIndexes();
+	auto indexes = m_thiz->B::selectedIndexes();
 	if (indexes.isEmpty())
 	{
 		// call base class method
