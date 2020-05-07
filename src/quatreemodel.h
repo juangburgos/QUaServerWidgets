@@ -112,6 +112,10 @@ inline void QUaTreeModel<N>::bindRecursivelly(
     // subscribe to new child node added
     conn = QUaModelItemTraits::NewChildCallback<N>(wrapper->node(),
         static_cast<std::function<void(N)>>([this, wrapper](N childNode) {
+            // TODO : implement a mechanism similar to QUaModelBaseEventer::execLater
+            //        to make all inserts requested in a single event loop call
+            //        at the same time and not one by one because now takes up to 
+            //        30% cpu time in a large > 10k deserialization test
         // get new node's row
         int row = wrapper->children().count();
         // only use indexes created by model

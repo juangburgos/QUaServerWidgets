@@ -22,7 +22,7 @@ public:
 		);
 	};
 	template <typename M1 = const std::function<void(void)>&>
-	inline void execLater(M1 &&func)
+	inline void execLater(M1 func)
 	{
 		m_funcs.enqueue(func);
 		if (processing)
@@ -125,9 +125,9 @@ public:
 	setColumnDataSource(
 		const int& column,
 		const QString& strHeader,
-		M1 &&dataCallback,              
-		M2 &&changeCallback   = nullptr,
-		M3 &&editableCallback = nullptr 
+		M1 dataCallback,              
+		M2 changeCallback   = nullptr,
+		M3 editableCallback = nullptr 
 	);
 
 	template<
@@ -140,15 +140,15 @@ public:
 	setColumnDataSource(
 		const int& column,
 		const QString& strHeader,
-		M1 &&dataCallback,
-		M2 &&changeCallback   = nullptr,
-		M3 &&editableCallback = nullptr
+		M1 dataCallback,
+		M2 changeCallback   = nullptr,
+		M3 editableCallback = nullptr
 	);
 
     void removeColumnDataSource(const int& column);
 
 	template<typename M1 = const std::function<void(void)>&>
-	inline void execLater(M1 &&func)
+	inline void execLater(M1 func)
 	{
 		this->m_eventer.execLater(func);
 	};
@@ -644,9 +644,9 @@ typename std::enable_if<std::is_pointer<X>::value, void>::type
 QUaModel<N>::setColumnDataSource(
 	const int& column, 
 	const QString& strHeader, 
-	M1 &&dataCallback,    // std::function<QVariant(X)>
-	M2 &&changeCallback,  // std::function<QMetaObject::Connection(X, std::function<void(void)>)>
-	M3 &&editableCallback // std::function<bool(X)>
+	M1 dataCallback,    // std::function<QVariant(X)>
+	M2 changeCallback,  // std::function<QMetaObject::Connection(X, std::function<void(void)>)>
+	M3 editableCallback // std::function<bool(X)>
 )
 {
 	Q_ASSERT(column >= 0);
@@ -679,9 +679,9 @@ typename std::enable_if<!std::is_pointer<X>::value, void>::type
 QUaModel<N>::setColumnDataSource(
 	const int& column,
 	const QString& strHeader,
-	M1 &&dataCallback,    // std::function<QVariant(X*)>
-	M2 &&changeCallback,  // std::function<QMetaObject::Connection(X*, std::function<void(void)>)>
-	M3 &&editableCallback // std::function<bool(X*)>
+	M1 dataCallback,    // std::function<QVariant(X*)>
+	M2 changeCallback,  // std::function<QMetaObject::Connection(X*, std::function<void(void)>)>
+	M3 editableCallback // std::function<bool(X*)>
 )
 {
 	Q_ASSERT(column >= 0);

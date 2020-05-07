@@ -5,7 +5,6 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 
 include($$PWD/../../libs/QUaServer.git/src/wrapper/quaserver.pri)
-include($$PWD/../../libs/QUaServer.git/depends/QFunctionUtils.git/src/qfunctionutils.pri)
 include($$PWD/../../src/quaserverwidgets.pri)
 
 SOURCES += \

@@ -9,6 +9,7 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSpinBox>
+#include <QDateTimeEdit>
 
 #include "quaxmlserializer.h"
 #include "quasqliteserializer.h"
@@ -184,53 +185,72 @@ void Dialog::setupTreeNodes()
 
     // setup model column data sources
     m_modelNodes.setColumnDataSource(0, tr("Display Name"), 
-    [](QUaNode * node) {
-        return node->displayName();
+    [](QUaNode * node) -> QVariant {
+        return node->displayName().toXmlString();
     }/* second callback is only necessary for data that changes */);
     m_modelNodes.setColumnDataSource(1, tr("Node Id"), 
-    [](QUaNode * node) {
-        return node->nodeId();
+    [](QUaNode * node) -> QVariant {
+        return node->nodeId().toXmlString();
     });
     m_modelNodes.setColumnDataSource(2, tr("Value"), 
     [](QUaNode * node) {
-        QString strType(node->metaObject()->className());
-        // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return QVariant();
-        }
-        auto var = qobject_cast<QUaBaseVariable*>(node);
-        Q_CHECK_PTR(var);
+         auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return QVariant(); }
         return var->value();
     },
     [](QUaNode * node, std::function<void(void)> changeCallback) {
-        QString strType(node->metaObject()->className());
-        // only print value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return QMetaObject::Connection();
-        }
         auto var = qobject_cast<QUaBaseVariable*>(node);
-        Q_CHECK_PTR(var);
+        if (!var) { return QMetaObject::Connection(); }
         return QObject::connect(var, &QUaBaseVariable::valueChanged,
         [changeCallback]() {
             changeCallback();
         });
     },
     [](QUaNode * node) {
-        QString strType(node->metaObject()->className());
-        // only edit value for variables
-        if (strType.compare("QUaProperty", Qt::CaseSensitive) != 0 &&
-            strType.compare("QUaBaseDataVariable", Qt::CaseSensitive) != 0)
-        {
-            return false;
-        }
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return false; }
+        return true;
+    });
+    m_modelNodes.setColumnDataSource(3, tr("Source Timestamp"), 
+    [](QUaNode * node) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return QString(); }
+        return var->sourceTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    },
+    [](QUaNode * node, std::function<void(void)> changeCallback) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return QMetaObject::Connection(); }
+        return QObject::connect(var, &QUaBaseVariable::sourceTimestampChanged,
+        [changeCallback]() {
+            changeCallback();
+        });
+    },
+    [](QUaNode * node) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return false; }
+        return true;
+    });
+    m_modelNodes.setColumnDataSource(4, tr("Server Timestamp"), 
+    [](QUaNode * node) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return QString(); }
+        return var->serverTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    },
+    [](QUaNode * node, std::function<void(void)> changeCallback) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return QMetaObject::Connection(); }
+        return QObject::connect(var, &QUaBaseVariable::serverTimestampChanged,
+        [changeCallback]() {
+            changeCallback();
+        });
+    },
+    [](QUaNode * node) {
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        if (!var) { return false; }
         return true;
     });
 
-    // setup tree editor
+    // setup tree editors
     ui->treeViewNodes->setColumnEditor(2,
     [](QWidget* parent, QUaNode* node) {
         Q_UNUSED(node);
@@ -255,6 +275,50 @@ void Dialog::setupTreeNodes()
         auto var  = qobject_cast<QUaBaseVariable*>(node);
         Q_CHECK_PTR(var);
         var->setValue(sbox->value());
+    });
+    ui->treeViewNodes->setColumnEditor(3,
+    [](QWidget* parent, QUaNode* node) {
+        Q_UNUSED(node);
+        // create editor
+        auto editor = new QDateTimeEdit(parent);
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        // set current value to editor
+        Q_CHECK_PTR(var);
+        editor->setDateTime(var->sourceTimestamp());
+        editor->setDisplayFormat("dd.MM.yyyy hh:mm:ss.zzz");
+        return editor;
+    }, 
+    [](QWidget* editor, QUaNode* node) {
+        Q_UNUSED(editor);
+        Q_UNUSED(node);
+    },
+    [](QWidget* editor, QUaNode* node) {
+        auto dedit = static_cast<QDateTimeEdit*>(editor);
+        auto var   = qobject_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        var->setSourceTimestamp(dedit->dateTime());
+    });
+    ui->treeViewNodes->setColumnEditor(4,
+    [](QWidget* parent, QUaNode* node) {
+        Q_UNUSED(node);
+        // create editor
+        auto editor = new QDateTimeEdit(parent);
+        auto var = qobject_cast<QUaBaseVariable*>(node);
+        // set current value to editor
+        Q_CHECK_PTR(var);
+        editor->setDateTime(var->serverTimestamp());
+        editor->setDisplayFormat("dd.MM.yyyy hh:mm:ss.zzz");
+        return editor;
+    }, 
+    [](QWidget* editor, QUaNode* node) {
+        Q_UNUSED(editor);
+        Q_UNUSED(node);
+    },
+    [](QWidget* editor, QUaNode* node) {
+        auto dedit = static_cast<QDateTimeEdit*>(editor);
+        auto var   = qobject_cast<QUaBaseVariable*>(node);
+        Q_CHECK_PTR(var);
+        var->setServerTimestamp(dedit->dateTime());
     });
 
     // support copy-paste
@@ -387,36 +451,28 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add QUaBaseObjectExt to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto objext = obj->addChild<QUaBaseObjectExt>();
-        objext->setDisplayName(name);
-        objext->setBrowseName(name);
+        obj->addChild<QUaBaseObjectExt>(name);
 	});
     menu.addAction(tr("Add Folder"), this,
 	[this, obj]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add Folder to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto folder = obj->addFolderObject();
-        folder->setDisplayName(name);
-        folder->setBrowseName(name);
+        obj->addFolderObject(name);
 	});
     menu.addAction(tr("Add BaseObject"), this,
 	[this, obj]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add base BaseObject to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto nobj = obj->addBaseObject();
-        nobj->setDisplayName(name);
-        nobj->setBrowseName(name);
+        obj->addBaseObject(name);
 	});
     menu.addAction(tr("Add DataVariable"), this,
 	[this, obj]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add DataVariable to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto basevar = obj->addBaseDataVariable();
-        basevar->setDisplayName(name);
-        basevar->setBrowseName(name);
+        auto basevar = obj->addBaseDataVariable(name);
         basevar->setWriteAccess(true);
 	});
     menu.addAction(tr("Add Property"), this,
@@ -424,9 +480,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add Property to %1").arg(obj->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto prop = obj->addProperty();
-        prop->setDisplayName(name);
-        prop->setBrowseName(name);
+        auto prop = obj->addProperty(name);
         prop->setWriteAccess(true);
 	});
     menu.addSeparator();
@@ -478,36 +532,28 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add QUaBaseObjectExt to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto objext = datavar->addChild<QUaBaseObjectExt>();
-        objext->setDisplayName(name);
-        objext->setBrowseName(name);
+        datavar->addChild<QUaBaseObjectExt>(name);
 	});
     menu.addAction(tr("Add Folder"), this,
 	[this, datavar]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add Folder to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto folder = datavar->addFolderObject();
-        folder->setDisplayName(name);
-        folder->setBrowseName(name);
+        datavar->addFolderObject(name);
 	});
     menu.addAction(tr("Add BaseObject"), this,
 	[this, datavar]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add base BaseObject to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto nobj = datavar->addBaseObject();
-        nobj->setDisplayName(name);
-        nobj->setBrowseName(name);
+        datavar->addBaseObject(name);
 	});
     menu.addAction(tr("Add DataVariable"), this,
 	[this, datavar]() {
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add DataVariable to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto basevar = datavar->addBaseDataVariable();
-        basevar->setDisplayName(name);
-        basevar->setBrowseName(name);
+        auto basevar = datavar->addBaseDataVariable(name);
         basevar->setWriteAccess(true);
 	});
     menu.addAction(tr("Add Property"), this,
@@ -515,9 +561,7 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         bool ok;
         QString name = QInputDialog::getText(this, tr("Add Property to %1").arg(datavar->displayName()), tr("Child Name:"), QLineEdit::Normal, "", &ok);
         if (!ok) { return; }
-        auto prop = datavar->addProperty();
-        prop->setDisplayName(name);
-        prop->setBrowseName(name);
+        auto prop = datavar->addProperty(name);
         prop->setWriteAccess(true);
 	});
     menu.addSeparator();

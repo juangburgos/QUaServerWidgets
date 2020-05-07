@@ -96,8 +96,6 @@ void Dialog::setupTableTypes()
         Q_CHECK_PTR(var);
         auto value = sbox->value();
         var->setValue(value);
-        // NOTE : emit manually because by default only emits if change through opc
-        emit var->valueChanged(value);
     });
 
     // support delete, copy-paste
@@ -225,9 +223,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newFolder = obj->addFolderObject(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
-        newFolder->setBrowseName(strName);
-        newFolder->setDisplayName(strName);
+        auto newFolder = obj->addFolderObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
         this->addMethods(newFolder);
         return QString("Success : %1 created.").arg(strName);
     });
@@ -236,9 +232,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newObj = obj->addBaseObject(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
-        newObj->setBrowseName(strName);
-        newObj->setDisplayName(strName);
+        auto newObj = obj->addBaseObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
         this->addMethods(newObj);
         return QString("Success : %1 created.").arg(strName);
     });
@@ -247,9 +241,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newVar = obj->addBaseDataVariable(QString("ns=1;s=%1.%2").arg(obj->browseName()).arg(strName));
-        newVar->setBrowseName(strName);
-        newVar->setDisplayName(strName);
+        auto newVar = obj->addBaseDataVariable(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
         newVar->setWriteAccess(true);
         return QString("Success : %1 created.").arg(strName);
     });

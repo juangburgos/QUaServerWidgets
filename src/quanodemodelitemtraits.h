@@ -70,8 +70,6 @@ QUaModelItemTraits::SetData<QUaNode*>(
     auto var = qobject_cast<QUaBaseVariable*>(node);
     Q_CHECK_PTR(var);
     var->setValue(value);
-    // NOTE : emit manually because by default only emits if change through opc
-    emit var->valueChanged(value);
     return true;
 }
 

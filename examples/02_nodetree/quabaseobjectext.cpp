@@ -21,9 +21,7 @@ QUaBaseObjectExt::QUaBaseObjectExt(QUaServer *server)
 
 void QUaBaseObjectExt::addObjectExtChild(QString strName)
 {
-    auto child = this->addChild<QUaBaseObjectExt>();
-    child->setDisplayName(strName);
-    child->setBrowseName(strName);
+    auto child = this->addChild<QUaBaseObjectExt>(strName);
 }
 
 void QUaBaseObjectExt::addMulitpleObjectExtChild(QString strBaseName, quint32 numChildren)
@@ -41,23 +39,17 @@ void QUaBaseObjectExt::remove()
 
 void QUaBaseObjectExt::addFolderChild(QString strName)
 {
-    auto folder = this->addFolderObject();
-    folder->setDisplayName(strName);
-    folder->setBrowseName(strName);
+    auto folder = this->addFolderObject(strName);
 }
 
 void QUaBaseObjectExt::addBaseObjectChild(QString strName)
 {
-    auto obj = this->addBaseObject();
-    obj->setDisplayName(strName);
-    obj->setBrowseName(strName);
+    auto obj = this->addBaseObject(strName);
 }
 
 void QUaBaseObjectExt::addBaseDataVariableChild(QString strName)
 {
-    auto var = this->addBaseDataVariable();
-    var->setDisplayName(strName);
-    var->setBrowseName(strName);
+    auto var = this->addBaseDataVariable(strName);
     var->setWriteAccess(true);
     // simulate value changes to measure model-view performance
     var->setDataType(QMetaType::Type::Int);
@@ -71,7 +63,6 @@ void QUaBaseObjectExt::addBaseDataVariableChild(QString strName)
             return;
         }
         var->setValue(counter++);
-        emit var->valueChanged(QVariant());
         timer->restart();
     });
     QObject::connect(var, &QObject::destroyed,
@@ -90,8 +81,6 @@ void QUaBaseObjectExt::addMultipleBaseDataVariableChild(QString strBaseName, qui
 
 void QUaBaseObjectExt::addPropertyChild(QString strName)
 {
-    auto prop = this->addProperty();
-    prop->setDisplayName(strName);
-    prop->setBrowseName(strName);
+    auto prop = this->addProperty(strName);
     prop->setWriteAccess(true);
 }
