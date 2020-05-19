@@ -10,12 +10,12 @@
 
 // SFINAE on members
 // https://stackoverflow.com/questions/25492589/can-i-use-sfinae-to-selectively-define-a-member-variable-in-a-template-class
-template <typename N, typename Enable = void>
+template <typename N, int I, typename Enable = void>
 class QUaViewBase {};
 
 // pointer type specialization
-template<typename N>
-class QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+template<typename N, int I>
+class QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 {
 public:
 	template<
@@ -43,7 +43,7 @@ public:
 
 protected:
 	// copy to avoid dynamic-casting all the time
-	QUaModel<N>* m_model;
+	QUaModel<N, I>* m_model;
 	QSortFilterProxyModel* m_proxy;
 
 	// internal editor callbacks
@@ -63,9 +63,9 @@ protected:
 	QList<N> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
 
-template<typename N>
+template<typename N, int I>
 template<typename M1, typename M2, typename M3>
-inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 ::setColumnEditor(
 	const int& column,
 	M1&& initEditorCallback,
@@ -86,15 +86,15 @@ inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::t
 	);
 }
 
-template<typename N>
-inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+template<typename N, int I>
+inline void QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
 }
 
-template<typename N>
-inline QList<N> QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+template<typename N, int I>
+inline QList<N> QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::nodesFromIndexes(const QModelIndexList& indexes) const
 {
 	QList<N> nodes;
@@ -112,25 +112,25 @@ inline QList<N> QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value
 	return nodes;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::setDeleteCallback(M &&deleteCallback)
 {
 	m_funcHandleDelete = deleteCallback;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::setCopyCallback(M &&copyCallback)
 {
 	m_funcHandleCopy = copyCallback;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<std::is_pointer<N>::value>::type>
 	::setPasteCallback(M &&pasteCallback)
 {
 	m_funcHandlePaste = pasteCallback;
@@ -138,8 +138,8 @@ inline void QUaViewBase<N, typename std::enable_if<std::is_pointer<N>::value>::t
 
 
 // instance specialization
-template<typename N>
-class QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+template<typename N, int I>
+class QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 {
 public:
 	// when double-click on editable item (editable allowed in model)
@@ -168,7 +168,7 @@ public:
 
 protected:
 	// copy to avoid dynamic-casting all the time
-	QUaModel<N>* m_model;
+	QUaModel<N, I>* m_model;
 	QSortFilterProxyModel* m_proxy;
 
 	// internal editor callbacks
@@ -188,9 +188,9 @@ protected:
 	QList<N*> nodesFromIndexes(const QModelIndexList& indexes) const;
 };
 
-template<typename N>
+template<typename N, int I>
 template<typename M1, typename M2, typename M3>
-inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 ::setColumnEditor(
 	const int& column,
 	M1 &&initEditorCallback,
@@ -212,15 +212,15 @@ inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::
 	);
 }
 
-template<typename N>
-inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+template<typename N, int I>
+inline void QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 	::removeColumnEditor(const int& column)
 {
 	m_mapEditorFuncs.remove(column);
 }
 
-template<typename N>
-inline QList<N*> QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+template<typename N, int I>
+inline QList<N*> QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 	::nodesFromIndexes(const QModelIndexList& indexes) const
 {
 	QList<N*> nodes;
@@ -238,33 +238,33 @@ inline QList<N*> QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::val
 	return nodes;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 	::setDeleteCallback(M &&deleteCallback)
 {
 	m_funcHandleDelete = deleteCallback;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 	::setCopyCallback(M &&copyCallback)
 {
 	m_funcHandleCopy = copyCallback;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename M>
-inline void QUaViewBase<N, typename std::enable_if<!std::is_pointer<N>::value>::type>
+inline void QUaViewBase<N, I, typename std::enable_if<!std::is_pointer<N>::value>::type>
 	::setPasteCallback(M &&pasteCallback)
 {
 	m_funcHandlePaste = pasteCallback;
 }
 
 // https://en.wikipedia.org/wiki/Template_metaprogramming#Static_polymorphism
-template <typename T, typename N>
-class QUaView : public QUaViewBase<N>
+template <typename T, typename N, int I>
+class QUaView : public QUaViewBase<N, I>
 {
 public:
 	explicit QUaView();
@@ -322,29 +322,29 @@ protected:
 };
 
 
-template<typename T, typename N>
-inline QUaView<T, N>::QUaView()
+template<typename T, typename N, int I>
+inline QUaView<T, N, I>::QUaView()
 {
 	m_model = nullptr;
 	m_proxy = nullptr;
 	m_thiz  = static_cast<T*>(this);
-	m_thiz->setItemDelegate(new QUaView<T, N>::QUaItemDelegate(m_thiz));
+	m_thiz->setItemDelegate(new QUaView<T, N, I>::QUaItemDelegate(m_thiz));
 	m_thiz->setAlternatingRowColors(true);
 	m_funcHandleCopy  = nullptr;
 	m_funcHandlePaste = nullptr;
 }
 
-template<typename T, typename N>
+template<typename T, typename N, int I>
 template<typename B>
-inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
+inline void QUaView<T, N, I>::setModel(QAbstractItemModel* model)
 {
-	auto nodeModel = dynamic_cast<QUaModel<N>*>(model);
+	auto nodeModel = dynamic_cast<QUaModel<N, I>*>(model);
 	if (!nodeModel)
 	{
 		m_proxy = dynamic_cast<QSortFilterProxyModel*>(model);
 		if (m_proxy)
 		{
-			nodeModel = dynamic_cast<QUaModel<N>*>(m_proxy->sourceModel());
+			nodeModel = dynamic_cast<QUaModel<N, I>*>(m_proxy->sourceModel());
 		}
 	}
 	else
@@ -360,9 +360,9 @@ inline void QUaView<T, N>::setModel(QAbstractItemModel* model)
 	m_thiz->B::setModel(model);
 }
 
-template<typename T, typename N>
+template<typename T, typename N, int I>
 template<typename B>
-inline QModelIndexList QUaView<T, N>::selectedIndexesOrigin() const
+inline QModelIndexList QUaView<T, N, I>::selectedIndexesOrigin() const
 {
 	auto indexes = m_thiz->B::selectedIndexes();
 	QModelIndexList res;
@@ -374,27 +374,27 @@ inline QModelIndexList QUaView<T, N>::selectedIndexesOrigin() const
 	return res;
 }
 
-template<typename T, typename N>
-inline void QUaView<T, N>::clearDeleteCallback()
+template<typename T, typename N, int I>
+inline void QUaView<T, N, I>::clearDeleteCallback()
 {
 	m_funcHandleDelete = nullptr;
 }
 
-template<typename T, typename N>
-inline void QUaView<T, N>::clearCopyCallback()
+template<typename T, typename N, int I>
+inline void QUaView<T, N, I>::clearCopyCallback()
 {
 	m_funcHandleCopy = nullptr;
 }
 
-template<typename T, typename N>
-inline void QUaView<T, N>::clearPasteCallback()
+template<typename T, typename N, int I>
+inline void QUaView<T, N, I>::clearPasteCallback()
 {
 	m_funcHandlePaste = nullptr;
 }
 
-template<typename T, typename N>
+template<typename T, typename N, int I>
 template<typename B>
-inline void QUaView<T, N>::dataChanged(
+inline void QUaView<T, N, I>::dataChanged(
 	const QModelIndex& topLeft,
 	const QModelIndex& bottomRight,
 	const QVector<int>& roles)
@@ -412,9 +412,9 @@ inline void QUaView<T, N>::dataChanged(
 	m_thiz->B::dataChanged(topLeft, bottomRight, roles);
 }
 
-template<typename T, typename N>
+template<typename T, typename N, int I>
 template<typename B>
-inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
+inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 {
 	auto indexes = m_thiz->B::selectedIndexes();
 	if (indexes.isEmpty())
@@ -477,8 +477,8 @@ inline void QUaView<T, N>::keyPressEvent(QKeyEvent* event)
 	return;
 }
 
-template<typename T, typename N>
-inline QUaView<T, N>::QUaItemDelegate::QUaItemDelegate(QObject* parent)
+template<typename T, typename N, int I>
+inline QUaView<T, N, I>::QUaItemDelegate::QUaItemDelegate(QObject* parent)
 	: QStyledItemDelegate(parent)
 {
 	auto view = static_cast<T*>(parent);
@@ -486,8 +486,8 @@ inline QUaView<T, N>::QUaItemDelegate::QUaItemDelegate(QObject* parent)
 	m_view = view;
 }
 
-template<typename T, typename N>
-inline QWidget* QUaView<T, N>::QUaItemDelegate::createEditor(
+template<typename T, typename N, int I>
+inline QWidget* QUaView<T, N, I>::QUaItemDelegate::createEditor(
 	QWidget* parent,
 	const QStyleOptionViewItem& option,
 	const QModelIndex& const_index
@@ -503,8 +503,8 @@ inline QWidget* QUaView<T, N>::QUaItemDelegate::createEditor(
         .m_initEditorCallback(parent, m_view->m_model->nodeFromIndex(index));
 }
 
-template<typename T, typename N>
-inline void QUaView<T, N>::QUaItemDelegate::setEditorData(
+template<typename T, typename N, int I>
+inline void QUaView<T, N, I>::QUaItemDelegate::setEditorData(
 	QWidget* editor,
 	const QModelIndex& const_index
 ) const
@@ -519,8 +519,8 @@ inline void QUaView<T, N>::QUaItemDelegate::setEditorData(
 		.m_updateEditorCallback(editor, m_view->m_model->nodeFromIndex(index));
 }
 
-template<typename T, typename N>
-inline void QUaView<T, N>::QUaItemDelegate::setModelData(
+template<typename T, typename N, int I>
+inline void QUaView<T, N, I>::QUaItemDelegate::setModelData(
 	QWidget* editor,
 	QAbstractItemModel* model,
 	const QModelIndex& const_index

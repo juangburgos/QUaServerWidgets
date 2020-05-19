@@ -9,7 +9,7 @@
 //    writting traits for it requires constructs that C++ does not support
 // 2) The respective QUaView<N> requires the same N as the model, so user would have
 //    to work with T and the API would not be properly abstracted
-template <typename N>
+template <typename N, int I = 0>
 class QUaCategoryModel : public QUaTreeModel<N>
 {
 public:
@@ -61,78 +61,79 @@ public:
 
 private:
     QHash<
-        typename QUaModel<N>::QUaNodeWrapper*,
+        typename QUaModel<N, I>::QUaNodeWrapper*,
         QString
     > m_hashCategories;
 
-    QUaModel<N>::QUaNodeWrapper* addCategoryInternal(const QString& strCategory);
+    QUaModel<N, I>::QUaNodeWrapper* addCategoryInternal(const QString& strCategory);
 
-    QUaModel<N>::QUaNodeWrapper* getCategoryInternal(const QString& strCategory);
+    QUaModel<N, I>::QUaNodeWrapper* getCategoryInternal(const QString& strCategory);
 };
 
-template<typename N>
-inline QUaCategoryModel<N>::QUaCategoryModel(QObject* parent) :
-    QUaTreeModel<N>(parent)
+template<typename N, int I>
+inline QUaCategoryModel<N, I>::QUaCategoryModel(QObject* parent) :
+    QUaTreeModel<N, I>(parent)
 {
-    QUaModel<N>::m_root = new typename QUaModel<N>::QUaNodeWrapper(
-        QUaModelItemTraits::GetInvalid<N>()
+    QUaModel<N, I>::m_root = new typename QUaModel<N, I>::QUaNodeWrapper(
+        QUaModelItemTraits::GetInvalid<N, I>()
     );
 }
 
-template<typename N>
-inline QUaCategoryModel<N>::~QUaCategoryModel()
+template<typename N, int I>
+inline QUaCategoryModel<N, I>::~QUaCategoryModel()
 {
-    if (QUaModel<N>::m_root)
+    if (QUaModel<N, I>::m_root)
     {
-        delete QUaModel<N>::m_root;
-        QUaModel<N>::m_root = nullptr;
+        delete QUaModel<N, I>::m_root;
+        QUaModel<N, I>::m_root = nullptr;
     }
 }
 
-template<typename N>
-inline void QUaCategoryModel<N>::addCategory(const QString& strCategory)
+template<typename N, int I>
+inline void QUaCategoryModel<N, I>::addCategory(const QString& strCategory)
 {
     this->addCategoryInternal(strCategory);
 }
 
-template<typename N>
-inline void QUaCategoryModel<N>::removeCategory(const QString& strCategory)
+template<typename N, int I>
+inline void QUaCategoryModel<N, I>::removeCategory(const QString& strCategory)
 {
-    Q_CHECK_PTR(QUaModel<N>::m_root);
+    auto root = QUaModel<N, I>::m_root;
+    Q_CHECK_PTR(root);
     // ignore unexisting category
     auto category = m_hashCategories.key(strCategory, nullptr);
     if (!category)
     {
         return;
     }
-    int idx = QUaModel<N>::m_root->children().indexOf(category);
+    int idx = root->children().indexOf(category);
     Q_ASSERT(idx >= 0);
     if (idx < 0)
     {
         return;
     }
-    auto wrapper = QUaModel<N>::m_root->children().at(idx);
+    auto wrapper = root->children().at(idx);
     // use internal method (deletes wrapper)
-    this->QUaModel<N>::removeWrapper(wrapper);
+    this->QUaModel<N, I>::removeWrapper(wrapper);
     // remove from hash before deleting wrapper
     Q_ASSERT(m_hashCategories.contains(wrapper));
     m_hashCategories.remove(wrapper);
 }
 
-template<typename N>
-inline bool QUaCategoryModel<N>::hasCategory(const QString& strCategory) const
+template<typename N, int I>
+inline bool QUaCategoryModel<N, I>::hasCategory(const QString& strCategory) const
 {
     return this->getCategoryInternal(strCategory);
 }
 
-template<typename N>
-inline QStringList QUaCategoryModel<N>::categories() const
+template<typename N, int I>
+inline QStringList QUaCategoryModel<N, I>::categories() const
 {
     return m_hashCategories.values();
 }
 
-template<typename N>
-inline void QUaCategoryModel<N>::addNodeToCategory(const QString& strCategory, N node)
+template<typename N, int I>
+inline void QUaCategoryModel<N, I>::addNodeToCategory(const QString& strCategory, N node)
 {
     // add category if not exists
     auto category = this->addCategoryInternal(strCategory);
@@ -144,7 +145,7 @@ inline void QUaCategoryModel<N>::addNodeToCategory(const QString& strCategory, N
     // notify views that row will be added
     this->beginInsertRows(index, row, row);
     // create new wrapper
-    auto wrapper = new typename QUaModel<N>::QUaNodeWrapper(
+    auto wrapper = new typename QUaModel<N, I>::QUaNodeWrapper(
         node,
         category,
         false // NOTE : not recursive
@@ -162,10 +163,12 @@ inline void QUaCategoryModel<N>::addNodeToCategory(const QString& strCategory, N
     // bind callback for data change on each column
     this->bindChangeCallbackForAllColumns(wrapper, false);
     // subscribe to instance removed
-    auto conn = QUaModelItemTraits::DestroyCallback<N>(wrapper->node(),
+    auto conn = QUaModelItemTraits::DestroyCallback<N, I>(wrapper->node(),
         [this, wrapper]() {
             Q_CHECK_PTR(wrapper);
-            Q_CHECK_PTR(QUaModel<N>::m_root);
+            auto root = QUaModel<N, I>::m_root;
+            Q_CHECK_PTR(root);
+            Q_UNUSED(root);
             // remove
             this->removeWrapper(wrapper);
         }
@@ -177,11 +180,11 @@ inline void QUaCategoryModel<N>::addNodeToCategory(const QString& strCategory, N
     }
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline 
 typename std::enable_if<std::is_pointer<X>::value, QString>::type 
-QUaCategoryModel<N>::nodeCategory(N node)
+QUaCategoryModel<N, I>::nodeCategory(N node)
 {
     for (auto strCategory : this->categories())
     {
@@ -194,11 +197,11 @@ QUaCategoryModel<N>::nodeCategory(N node)
     return QString();
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline 
 typename std::enable_if<!std::is_pointer<X>::value, QString>::type 
-QUaCategoryModel<N>::nodeCategory(N* node)
+QUaCategoryModel<N, I>::nodeCategory(N* node)
 {
     for (auto strCategory : this->categories())
     {
@@ -211,11 +214,11 @@ QUaCategoryModel<N>::nodeCategory(N* node)
     return QString();
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline 
 typename std::enable_if<std::is_pointer<X>::value, QList<N>>::type 
-QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
+QUaCategoryModel<N, I>::nodesByCategory(const QString& strCategory)
 {
     QList<N> nodes;
     auto category = getCategoryInternal(strCategory);
@@ -230,11 +233,11 @@ QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
     return nodes;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline
 typename std::enable_if<!std::is_pointer<X>::value, QList<N*>>::type
-QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
+QUaCategoryModel<N, I>::nodesByCategory(const QString& strCategory)
 {
     QList<N*> nodes;
     auto category = getCategoryInternal(strCategory);
@@ -249,15 +252,15 @@ QUaCategoryModel<N>::nodesByCategory(const QString& strCategory)
     return nodes;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline
 typename std::enable_if<std::is_pointer<X>::value, bool>::type
-QUaCategoryModel<N>::removeNode(N node)
+QUaCategoryModel<N, I>::removeNode(N node)
 {
     bool res = false;
     // look for node in all categories
-    auto& categories = QUaModel<N>::m_root->children();
+    auto& categories = QUaModel<N, I>::m_root->children();
     for (auto category : categories)
     {
         auto wrapper = category->childByNode(node);
@@ -271,15 +274,15 @@ QUaCategoryModel<N>::removeNode(N node)
     return res;
 }
 
-template<typename N>
+template<typename N, int I>
 template<typename X>
 inline 
 typename std::enable_if<!std::is_pointer<X>::value, bool>::type 
-QUaCategoryModel<N>::removeNode(N* node)
+QUaCategoryModel<N, I>::removeNode(N* node)
 {
     bool res = false;
     // look for node in all categories
-    auto& categories = QUaModel<N>::m_root->children();
+    auto& categories = QUaModel<N, I>::m_root->children();
     for (auto category : categories)
     {
         auto wrapper = category->childByNode(node);
@@ -293,8 +296,8 @@ QUaCategoryModel<N>::removeNode(N* node)
     return res;
 }
 
-template<typename N>
-inline QStringList QUaCategoryModel<N>::indexesToCategories(
+template<typename N, int I>
+inline QStringList QUaCategoryModel<N, I>::indexesToCategories(
         const QModelIndexList& indexes
     ) const
 {
@@ -309,7 +312,7 @@ inline QStringList QUaCategoryModel<N>::indexesToCategories(
         // ignore nodes
         auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
         Q_CHECK_PTR(wrapper);
-        if (QUaModelItemTraits::IsValid<N>(wrapper->node()))
+        if (QUaModelItemTraits::IsValid<N, I>(wrapper->node()))
         {
             continue;
         }
@@ -325,13 +328,13 @@ inline QStringList QUaCategoryModel<N>::indexesToCategories(
     return categories;
 }
 
-template<typename N>
-inline QVariant QUaCategoryModel<N>::data(
+template<typename N, int I>
+inline QVariant QUaCategoryModel<N, I>::data(
     const QModelIndex& index, 
     int role) const
 {
     // early exit for inhandled cases
-    if (!QUaModel<N>::m_root || !index.isValid())
+    if (!QUaModel<N, I>::m_root || !index.isValid())
     {
         return QVariant();
     }
@@ -341,11 +344,11 @@ inline QVariant QUaCategoryModel<N>::data(
         return QVariant();
     }
     // get internal reference
-    auto wrapper = static_cast<QUaModel<N>::QUaNodeWrapper*>(index.internalPointer());
+    auto wrapper = static_cast<QUaModel<N, I>::QUaNodeWrapper*>(index.internalPointer());
     // NOTE : do not ignore invalid
-    auto &categories = QUaModel<N>::m_root->children();
+    auto &categories = QUaModel<N, I>::m_root->children();
     auto res = std::find_if(categories.begin(), categories.end(),
-    [wrapper](QUaModel<N>::QUaNodeWrapper * category) {
+    [wrapper](QUaModel<N, I>::QUaNodeWrapper * category) {
         return wrapper == category;
     });
     auto category = (res == categories.end()) ? nullptr : *res;
@@ -376,31 +379,32 @@ inline QVariant QUaCategoryModel<N>::data(
 
 }
 
-template<typename N>
-inline typename QUaModel<N>::QUaNodeWrapper* 
-QUaCategoryModel<N>::addCategoryInternal(const QString& strCategory)
+template<typename N, int I>
+inline typename QUaModel<N, I>::QUaNodeWrapper*
+QUaCategoryModel<N, I>::addCategoryInternal(const QString& strCategory)
 {
-    Q_CHECK_PTR(QUaModel<N>::m_root);
+    auto root = QUaModel<N, I>::m_root;
+    Q_CHECK_PTR(root);
     // ignore existing category
     auto wrapper = this->getCategoryInternal(strCategory);
     if (wrapper)
     {
         return wrapper;
     }
-    QModelIndex index = QUaModel<N>::m_root->index();
+    QModelIndex index = root->index();
     // get new child's row
-    int row = QUaModel<N>::m_root->children().count();
+    int row = root->children().count();
     // notify views that row will be added
     this->beginInsertRows(index, row, row);
     // create new wrapper
     // NOTE : is invalid, we use the wrapper pointer as a key to the categories hash
-    wrapper = new typename QUaModel<N>::QUaNodeWrapper(
-        QUaModelItemTraits::GetInvalid<N>(),
-        QUaModel<N>::m_root,
+    wrapper = new typename QUaModel<N, I>::QUaNodeWrapper(
+        QUaModelItemTraits::GetInvalid<N, I>(),
+        root,
         false // NOTE : not recursive
     );
     // apprend to parent's children list
-    QUaModel<N>::m_root->children() << wrapper;
+    root->children() << wrapper;
     // bind to string
     m_hashCategories[wrapper] = strCategory;
     // notify views that row addition has finished
@@ -411,20 +415,20 @@ QUaCategoryModel<N>::addCategoryInternal(const QString& strCategory)
     return wrapper;
 }
 
-template<typename N>
-inline typename QUaModel<N>::QUaNodeWrapper* 
-QUaCategoryModel<N>::getCategoryInternal(const QString& strCategory)
+template<typename N, int I>
+inline typename QUaModel<N, I>::QUaNodeWrapper*
+QUaCategoryModel<N, I>::getCategoryInternal(const QString& strCategory)
 {
     return m_hashCategories.key(strCategory, nullptr);
 }
 
-template<typename N>
-inline void QUaCategoryModel<N>::clear()
+template<typename N, int I>
+inline void QUaCategoryModel<N, I>::clear()
 {
     this->beginResetModel();
-    while (QUaModel<N>::m_root->children().count() > 0)
+    while (QUaModel<N, I>::m_root->children().count() > 0)
     {
-        auto wrapper = QUaModel<N>::m_root->children().takeFirst();
+        auto wrapper = QUaModel<N, I>::m_root->children().takeFirst();
         // NOTE : QUaNodeWrapper destructor removes connections
         delete wrapper;
     }

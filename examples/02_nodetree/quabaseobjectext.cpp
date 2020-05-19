@@ -21,7 +21,7 @@ QUaBaseObjectExt::QUaBaseObjectExt(QUaServer *server)
 
 void QUaBaseObjectExt::addObjectExtChild(QString strName)
 {
-    auto child = this->addChild<QUaBaseObjectExt>(strName);
+    this->addChild<QUaBaseObjectExt>(strName);
 }
 
 void QUaBaseObjectExt::addMulitpleObjectExtChild(QString strBaseName, quint32 numChildren)
@@ -39,12 +39,12 @@ void QUaBaseObjectExt::remove()
 
 void QUaBaseObjectExt::addFolderChild(QString strName)
 {
-    auto folder = this->addFolderObject(strName);
+    this->addFolderObject(strName);
 }
 
 void QUaBaseObjectExt::addBaseObjectChild(QString strName)
 {
-    auto obj = this->addBaseObject(strName);
+    this->addBaseObject(strName);
 }
 
 void QUaBaseObjectExt::addBaseDataVariableChild(QString strName)

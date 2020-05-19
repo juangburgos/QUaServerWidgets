@@ -223,7 +223,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newFolder = obj->addFolderObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
+        auto newFolder = obj->addFolderObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
         this->addMethods(newFolder);
         return QString("Success : %1 created.").arg(strName);
     });
@@ -232,7 +232,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newObj = obj->addBaseObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
+        auto newObj = obj->addBaseObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
         this->addMethods(newObj);
         return QString("Success : %1 created.").arg(strName);
     });
@@ -241,7 +241,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
         {
             return QString("Error : %1 already exists.").arg(strName);
         }
-        auto newVar = obj->addBaseDataVariable(strName, QString("ns=0;s=%1.%2").arg(obj->browseName()).arg(strName));
+        auto newVar = obj->addBaseDataVariable(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
         newVar->setWriteAccess(true);
         return QString("Success : %1 created.").arg(strName);
     });

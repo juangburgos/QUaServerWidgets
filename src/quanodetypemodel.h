@@ -5,7 +5,7 @@
 #include <QUaTableModel>
 #include <QUaServer>
 
-class QUaNodeTypeModel : public QUaTableModel<QUaNode*>
+class QUaNodeTypeModel : public QUaTableModel<QUaNode*, 0>
 {
     Q_OBJECT
 
@@ -27,7 +27,7 @@ private:
 };
 
 inline QUaNodeTypeModel::QUaNodeTypeModel(QObject* parent)
-    : QUaTableModel<QUaNode*>(parent)
+    : QUaTableModel<QUaNode*, 0>(parent)
 {
 
 }

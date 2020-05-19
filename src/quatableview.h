@@ -4,11 +4,11 @@
 #include <QTableView>
 #include <QUaView>
 
-template <typename N>
-class QUaTableView : public QTableView, public QUaView<QUaTableView<N>, N>
+template <typename N, int I = 0>
+class QUaTableView : public QTableView, public QUaView<QUaTableView<N, I>, N, I>
 {
 	// to be able to access base class QTableView protected members
-	friend class QUaView<QUaTableView, N>;
+	friend class QUaView<QUaTableView, N, I>;
 public:
 	explicit QUaTableView(QWidget* parent = nullptr);
 
@@ -30,41 +30,41 @@ public:
 	void keyPressEvent(QKeyEvent* event) override;
 };
 
-template<typename N>
-inline QUaTableView<N>::QUaTableView(QWidget* parent) :
+template<typename N, int I>
+inline QUaTableView<N, I>::QUaTableView(QWidget* parent) :
 	QTableView(parent),
-	QUaView<QUaTableView, N>()
+	QUaView<QUaTableView, N, I>()
 {
 }
 
-template<typename N>
-inline void QUaTableView<N>::setModel(QAbstractItemModel* model)
+template<typename N, int I>
+inline void QUaTableView<N, I>::setModel(QAbstractItemModel* model)
 {
-	QUaView<QUaTableView, N>
+	QUaView<QUaTableView, N, I>
         ::template setModel<QTableView>(model);
 }
 
-template<typename N>
-inline QModelIndexList QUaTableView<N>::selectedIndexesOrigin() const
+template<typename N, int I>
+inline QModelIndexList QUaTableView<N, I>::selectedIndexesOrigin() const
 {
 	return QUaView<QUaTableView, N>
 		::template selectedIndexesOrigin<QTableView>();
 }
 
-template<typename N>
-inline void QUaTableView<N>::dataChanged(
+template<typename N, int I>
+inline void QUaTableView<N, I>::dataChanged(
 	const QModelIndex& topLeft,
 	const QModelIndex& bottomRight,
 	const QVector<int>& roles)
 {
-	QUaView<QUaTableView, N>
+	QUaView<QUaTableView, N, I>
         ::template dataChanged<QTableView>(topLeft, bottomRight, roles);
 }
 
-template<typename N>
-inline void QUaTableView<N>::keyPressEvent(QKeyEvent* event)
+template<typename N, int I>
+inline void QUaTableView<N, I>::keyPressEvent(QKeyEvent* event)
 {
-	QUaView<QUaTableView, N>
+	QUaView<QUaTableView, N, I>
         ::template keyPressEvent<QTableView>(event);
 }
 

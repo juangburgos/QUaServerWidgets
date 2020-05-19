@@ -8,7 +8,7 @@
 
 template<> static
 inline QMetaObject::Connection 
-QUaModelItemTraits::DestroyCallback<QUaNode*>(
+QUaModelItemTraits::DestroyCallback<QUaNode*, 0>(
     QUaNode* node, 
     const std::function<void(void)> &callback)
 {
@@ -24,7 +24,7 @@ QUaModelItemTraits::DestroyCallback<QUaNode*>(
 
 template<> static
 inline QMetaObject::Connection
-QUaModelItemTraits::NewChildCallback<QUaNode*>(
+QUaModelItemTraits::NewChildCallback<QUaNode*, 0>(
     QUaNode* node, 
     const std::function<void(QUaNode*)> &callback)
 {
@@ -40,7 +40,7 @@ QUaModelItemTraits::NewChildCallback<QUaNode*>(
 
 template<> static
 inline QList<QUaNode*> 
-QUaModelItemTraits::GetChildren<QUaNode*>(QUaNode* node)
+QUaModelItemTraits::GetChildren<QUaNode*, 0>(QUaNode* node)
 {
     if (!node)
     {
@@ -54,7 +54,7 @@ QUaModelItemTraits::GetChildren<QUaNode*>(QUaNode* node)
 // setColumnEditor has preference in case both implemented
 template<> static
 inline bool
-QUaModelItemTraits::SetData<QUaNode*>(
+QUaModelItemTraits::SetData<QUaNode*, 0>(
     QUaNode* node,
     const int& column,
     const QVariant& value)

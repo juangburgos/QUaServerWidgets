@@ -10,7 +10,7 @@ struct QUaModelItemTraits
 public:
 	// notify when T is about to be destroyed by calling *callback* (e.g. QObject::destroyed signal)
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
 	DestroyCallback(T* n, const std::function<void(void)>& callback) // NOTE : template M does not work
 	{
@@ -19,7 +19,7 @@ public:
 		return QMetaObject::Connection();
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, QMetaObject::Connection>::type
 	DestroyCallback(T n, const std::function<void(void)>& callback) // NOTE : template M does not work
 	{
@@ -29,7 +29,7 @@ public:
 	}
 	// notify when T just got a new child by calling *callback* (e.g. QUaNode::childAdded signal)
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, QMetaObject::Connection>::type
 	NewChildCallback(T* n, const std::function<void(T&)>& callback) // NOTE : template M does not work
 	{
@@ -38,7 +38,7 @@ public:
 		return QMetaObject::Connection();
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, QMetaObject::Connection>::type
 	NewChildCallback(T n, const std::function<void(T)>& callback) // NOTE : template M does not work
 	{
@@ -48,7 +48,7 @@ public:
 	}
 	// return a list of children of T
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, QList<T>>::type
 	GetChildren(const T* n)
 	{
@@ -56,7 +56,7 @@ public:
 		return QList<T>();
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, QList<T>>::type
 	GetChildren(T n)
 	{
@@ -65,14 +65,14 @@ public:
 	}
 	// return true if T is valid, else return false
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
 	IsValid(const T* n)
 	{
 		return n;
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, bool>::type
 	IsValid(const T n)
 	{
@@ -80,21 +80,21 @@ public:
 	}
 	// construct an invalid T (one that fails the above IsValid trait)
 	// default implementation if T is type or pointer
-	template<typename T> static 
+	template<typename T, int I = 0> static
 	T GetInvalid()
 	{
 		return nullptr;
 	}
 	// return true if two Ts are equal, else return false
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
 	IsEqual(const T* n1, const T* n2)
 	{
 		return n1 == n2;
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, bool>::type
 	IsEqual(const T n1, const T n2)
 	{
@@ -102,7 +102,7 @@ public:
 	}
 	// set data into T (reference)
 	// default implementation if T is type
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<!std::is_pointer<T>::value, bool>::type
 	SetData(T* n, const int &column, const QVariant& value)
 	{
@@ -112,7 +112,7 @@ public:
 		return false;
 	}
 	// default implementation if T is pointer
-	template<typename T> static
+	template<typename T, int I = 0> static
 	typename std::enable_if<std::is_pointer<T>::value, bool>::type
 	SetData(T n, const int& column, const QVariant& value)
 	{
