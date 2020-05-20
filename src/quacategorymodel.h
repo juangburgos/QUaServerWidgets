@@ -338,11 +338,6 @@ inline QVariant QUaCategoryModel<N, I>::data(
     {
         return QVariant();
     }
-    // only display data (text)
-    if (role != Qt::DisplayRole)
-    {
-        return QVariant();
-    }
     // get internal reference
     auto wrapper = static_cast<QUaModel<N, I>::QUaNodeWrapper*>(index.internalPointer());
     // NOTE : do not ignore invalid
@@ -355,7 +350,7 @@ inline QVariant QUaCategoryModel<N, I>::data(
     // return category name if category
     if (category)
     {
-        if (index.column() == 0)
+        if (index.column() == 0 && role == Qt::DisplayRole)
         {
             Q_ASSERT(m_hashCategories.contains(category));
             return m_hashCategories[category];
@@ -375,8 +370,10 @@ inline QVariant QUaCategoryModel<N, I>::data(
         return QVariant();
     }
     // use user-defined ColumnDataSource
-    return m_mapDataSourceFuncs[index.column()].m_dataCallback(wrapper->node());
-
+    return m_mapDataSourceFuncs[index.column()].m_dataCallback(
+        wrapper->node(),
+        static_cast<Qt::ItemDataRole>(role)
+    );
 }
 
 template<typename N, int I>

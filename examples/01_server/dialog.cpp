@@ -88,20 +88,36 @@ void Dialog::setupLogTable()
     });
     // setup model column data sources
     m_modelLog.setColumnDataSource(0, tr("Timestamp"), 
-    [](QUaLog * log) {
-        return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    [](QUaLog * log, const Qt::ItemDataRole &role) -> QVariant {
+        if (role == Qt::DisplayRole)
+        {
+            return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+        }
+        return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(1, tr("Level"), 
-    [](QUaLog * log) {
-        return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
+    [](QUaLog * log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(2, tr("Category"),
-    [](QUaLog * log) {
-        return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
+    [](QUaLog * log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLog.setColumnDataSource(3, tr("Message"), 
-    [](QUaLog * log) {
-        return log->message;
+    [](QUaLog * log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return log->message;
+		}
+		return QVariant();
     },
     nullptr, /* no data changes, but editable just for testing */
     [](QUaLog * log) {
@@ -169,28 +185,52 @@ void Dialog::setupSessionTable()
     });
     // setup model column data sources
     m_modelSession.setColumnDataSource(0, tr("Timestamp"),
-    [](const QUaSession* session) {
-        return session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(1, tr("Id"),
-    [](const QUaSession* session) {
-        return session->sessionId();
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->sessionId();
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(2, tr("Name"),
-    [](const QUaSession* session) {
-        return session->applicationName();
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->applicationName();
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(3, tr("Address"),
-    [](const QUaSession* session) {
-        return session->address();
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->address();
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(4, tr("Port"),
-    [](const QUaSession* session) {
-        return session->port();
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->port();
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelSession.setColumnDataSource(5, tr("Username"),
-    [](const QUaSession* session) {
-        return session->userName();
+    [](const QUaSession* session, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return session->userName();
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
 
     // support copy

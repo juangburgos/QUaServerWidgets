@@ -52,19 +52,32 @@ void Dialog::setupTableTypes()
     m_modelTypes.bindType<QUaBaseDataVariable>(&m_server);
     // setup model column data sources
     m_modelTypes.setColumnDataSource(0, tr("Display Name"), 
-    [this](QUaNode * node) {
-        return this->dataCallback_0(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_0(node);
+		}
+		return QVariant();
     }/* second callback is only necessary for data that changes */);
     m_modelTypes.setColumnDataSource(1, tr("Node Id"),
-    [this](QUaNode * node) {
-        return this->dataCallback_1(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_1(node);
+		}
+		return QVariant();
     });
     m_modelTypes.setColumnDataSource(2, tr("Value"), 
-    [this](QUaNode * node) {
-        return this->dataCallback_2(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_2(node);
+		}
+		return QVariant();
     },
     [this](QUaNode * node, std::function<void()> changeCallback) {
-        return this->changeCallback_2(node, changeCallback);
+        return QList<QMetaObject::Connection>() <<
+            this->changeCallback_2(node, changeCallback);
     },
     [this](QUaNode * node) {
         return this->editableCallback_2(node);
@@ -148,19 +161,32 @@ void Dialog::setupTreeCategories()
 {
     // setup model
     m_modelCategories.setColumnDataSource(0, tr("Display Name"),
-    [this](QUaNode * node) {
-        return this->dataCallback_0(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_0(node);
+		}
+		return QVariant();
     }/* second callback is only necessary for data that changes */);
     m_modelCategories.setColumnDataSource(1, tr("Node Id"),
-    [this](QUaNode * node) {
-        return this->dataCallback_1(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_1(node);
+		}
+		return QVariant();
     });
     m_modelCategories.setColumnDataSource(2, tr("Value"),
-    [this](QUaNode * node) {
-        return this->dataCallback_2(node);
+    [this](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return this->dataCallback_2(node);
+		}
+		return QVariant();
     },
     [this](QUaNode * node, std::function<void()> changeCallback) {
-        return this->changeCallback_2(node, changeCallback);
+        return  QList<QMetaObject::Connection>() <<
+            this->changeCallback_2(node, changeCallback);
     },
     [this](QUaNode * node) {
         return this->editableCallback_2(node);
@@ -281,7 +307,7 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
 
 QVariant Dialog::dataCallback_0(QUaNode* node)
 {
-    return node->displayName();
+    return node->displayName().text();
 }
 
 QVariant Dialog::dataCallback_1(QUaNode* node)

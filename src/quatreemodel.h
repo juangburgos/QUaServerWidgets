@@ -144,10 +144,8 @@ inline void QUaTreeModel<N, I>::bindRecursivelly(
             this->index(row, 0, index),
             QAbstractItemModel::CheckIndexOption::IndexIsValid
         );
-        //bool indexOk = this->checkIndex(
-        //    this->index(row, 0, index), 
-        //    QAbstractItemModel::CheckIndexOption::IndexIsValid
-        //);
+        // emit added signal
+        this->handleNodeAddedRecursive(childWrapper);
         Q_ASSERT(indexOk);
         Q_UNUSED(indexOk);
     }));

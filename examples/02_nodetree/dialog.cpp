@@ -185,26 +185,41 @@ void Dialog::setupTreeNodes()
 
     // setup model column data sources
     m_modelNodes.setColumnDataSource(0, tr("Display Name"), 
-    [](QUaNode * node) -> QVariant {
-        return node->displayName().toXmlString();
+    [](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return node->displayName().toXmlString();
+		}
+		return QVariant();
     }/* second callback is only necessary for data that changes */);
     m_modelNodes.setColumnDataSource(1, tr("Node Id"), 
-    [](QUaNode * node) -> QVariant {
-        return node->nodeId().toXmlString();
+    [](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return node->nodeId().toXmlString();
+		}
+		return QVariant();
     });
     m_modelNodes.setColumnDataSource(2, tr("Value"), 
-    [](QUaNode * node) {
-         auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QVariant(); }
-        return var->value();
+    [](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			auto var = qobject_cast<QUaBaseVariable*>(node);
+			if (!var) { return QVariant(); }
+			return var->value();
+		}
+		return QVariant();
     },
     [](QUaNode * node, std::function<void(void)> changeCallback) {
+        QList<QMetaObject::Connection> retList;
         auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QMetaObject::Connection(); }
-        return QObject::connect(var, &QUaBaseVariable::valueChanged,
+        if (!var) { return retList; }
+        retList <<
+        QObject::connect(var, &QUaBaseVariable::valueChanged,
         [changeCallback]() {
             changeCallback();
         });
+        return retList;
     },
     [](QUaNode * node) {
         auto var = qobject_cast<QUaBaseVariable*>(node);
@@ -212,18 +227,25 @@ void Dialog::setupTreeNodes()
         return true;
     });
     m_modelNodes.setColumnDataSource(3, tr("Source Timestamp"), 
-    [](QUaNode * node) {
-        auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QString(); }
-        return var->sourceTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    [](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			auto var = qobject_cast<QUaBaseVariable*>(node);
+			if (!var) { return QString(); }
+			return var->sourceTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+		}
+		return QVariant();
     },
     [](QUaNode * node, std::function<void(void)> changeCallback) {
+        QList<QMetaObject::Connection> retList;
         auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QMetaObject::Connection(); }
-        return QObject::connect(var, &QUaBaseVariable::sourceTimestampChanged,
+        if (!var) { return retList; }
+        retList <<
+        QObject::connect(var, &QUaBaseVariable::sourceTimestampChanged,
         [changeCallback]() {
             changeCallback();
         });
+        return retList;
     },
     [](QUaNode * node) {
         auto var = qobject_cast<QUaBaseVariable*>(node);
@@ -231,18 +253,25 @@ void Dialog::setupTreeNodes()
         return true;
     });
     m_modelNodes.setColumnDataSource(4, tr("Server Timestamp"), 
-    [](QUaNode * node) {
-        auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QString(); }
-        return var->serverTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    [](QUaNode * node, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			auto var = qobject_cast<QUaBaseVariable*>(node);
+			if (!var) { return QString(); }
+			return var->serverTimestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+		}
+        return QVariant();
     },
     [](QUaNode * node, std::function<void(void)> changeCallback) {
+        QList<QMetaObject::Connection> retList;
         auto var = qobject_cast<QUaBaseVariable*>(node);
-        if (!var) { return QMetaObject::Connection(); }
-        return QObject::connect(var, &QUaBaseVariable::serverTimestampChanged,
+        if (!var) { return retList; }
+        retList <<
+        QObject::connect(var, &QUaBaseVariable::serverTimestampChanged,
         [changeCallback]() {
             changeCallback();
         });
+        return retList;
     },
     [](QUaNode * node) {
         auto var = qobject_cast<QUaBaseVariable*>(node);
@@ -393,20 +422,36 @@ void Dialog::setupTreeLogs()
     m_modelLogs.setRootNode(QUaLog());
     // setup model column data sources
     m_modelLogs.setColumnDataSource(0, tr("Timestamp"),
-    [](QUaLog * log) {
-        return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+    [](QUaLog * log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(1, tr("Level"),
-    [](QUaLog* log) {
-        return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
+    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(2, tr("Category"),
-    [](QUaLog* log) {
-        return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
+    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
+		}
+		return QVariant();
     }/* other callbacks for data that changes or editable */);
     m_modelLogs.setColumnDataSource(3, tr("Message"),
-    [](QUaLog* log) {
-        return log->message;
+    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+		if (role == Qt::DisplayRole)
+		{
+			return log->message;
+		}
+		return QVariant();
     });
     // support delete and copy
     ui->treeViewLog->setSelectionBehavior(QAbstractItemView::SelectRows);
