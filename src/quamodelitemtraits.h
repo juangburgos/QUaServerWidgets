@@ -79,9 +79,18 @@ public:
 		return n;
 	}
 	// construct an invalid T (one that fails the above IsValid trait)
-	// default implementation if T is type or pointer
+	// default implementation if T is type
 	template<typename T, int I = 0> static
-	T GetInvalid()
+	typename std::enable_if<!std::is_pointer<T>::value, T>::type
+	GetInvalid()
+	{
+		return T();
+	}
+	// construct an invalid T (one that fails the above IsValid trait)
+	// default implementation if T is pointer
+	template<typename T, int I = 0> static
+	typename std::enable_if<std::is_pointer<T>::value, T>::type
+	GetInvalid()
 	{
 		return nullptr;
 	}

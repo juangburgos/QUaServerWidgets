@@ -79,9 +79,6 @@ inline void QUaTreeModel<N, I>::bindRecursivelly(
     // subscribe to node removed
     auto conn = QUaModelItemTraits::DestroyCallback<N, I>(wrapper->node(),
         static_cast<std::function<void(void)>>([this, wrapper]() {
-// NOTE : cannot queue or fuck up node delete with children on tree
-// NOTE : cannot process events after of fuck up ua server
-// NOTE : cannot call multiple QUaModelItemTraits::DestroyCallback in a loop of fuck up indexes
         Q_CHECK_PTR(wrapper);
         auto root = QUaModel<N, I>::m_root;
         if (wrapper == root)
@@ -91,19 +88,29 @@ inline void QUaTreeModel<N, I>::bindRecursivelly(
         }
         // NOTE : node->m_parent must be valid because (node == m_root) 
         //        already handled
-        Q_ASSERT(wrapper->parent());
+        auto parent = wrapper->parent();
+        Q_ASSERT(parent);
         // only use indexes created by model
         int row = wrapper->index().row();
-        QModelIndex index = wrapper->parent()->index();
-        Q_ASSERT(wrapper->parent() == root ||
+        QModelIndex index = parent->index();
+        Q_ASSERT(parent == root ||
             this->checkIndex(index, QAbstractItemModel::CheckIndexOption::IndexIsValid));
         // notify views that row will be removed
         this->beginRemoveRows(index, row, row);
         // remove from parent, destructor deletes wrapper sub-tree recursivelly
-        Q_ASSERT(wrapper == wrapper->parent()->children().at(row));
-        delete wrapper->parent()->children().takeAt(row);
+        Q_ASSERT(wrapper == parent->children().at(row));
+        delete parent->children().takeAt(row);
         // notify views that row removal has finished
         this->endRemoveRows();
+        // force index re-creation (indirectly)
+        // so we can delete multiple rows in a loop inmediatly (without having to queue them)
+        bool indexOk = this->checkIndexRecursive(
+            index,
+            QAbstractItemModel::CheckIndexOption::IndexIsValid,
+            parent == root
+        );
+        Q_ASSERT(indexOk);
+        Q_UNUSED(indexOk);
     }));
     // NOTE : QUaNodeWrapper destructor removes connections
     if (conn)
@@ -144,10 +151,10 @@ inline void QUaTreeModel<N, I>::bindRecursivelly(
             this->index(row, 0, index),
             QAbstractItemModel::CheckIndexOption::IndexIsValid
         );
-        // emit added signal
-        this->handleNodeAddedRecursive(childWrapper);
         Q_ASSERT(indexOk);
         Q_UNUSED(indexOk);
+        // emit added signal
+        this->handleNodeAddedRecursive(childWrapper);
     }));
     // NOTE : QUaNodeWrapper destructor removes connections
     if (conn)

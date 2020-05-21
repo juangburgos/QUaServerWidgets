@@ -1,10 +1,12 @@
 INCLUDEPATH += $$PWD/
 
 FORMS += \
+    $$PWD/qualogwidget.ui \
     $$PWD/quaserverwidget.ui
 
 
 HEADERS += \
+    $$PWD/qualogwidget.h \
     $$PWD/quaserverwidget.h \
     $$PWD/quamodel.h \
     $$PWD/quatablemodel.h \
@@ -19,5 +21,6 @@ HEADERS += \
     $$PWD/qualogmodelitemtraits.h
 
 SOURCES += \
+    $$PWD/qualogwidget.cpp \
     $$PWD/quaserverwidget.cpp
 

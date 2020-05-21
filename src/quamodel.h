@@ -33,7 +33,7 @@ public:
 		emit this->sendEvent(QPrivateSignal());
 	};
 signals:
-	void nodeAdded(void* node, const QModelIndex &index);
+	void nodeAdded(void* wrapper);
 	void sendEvent(QPrivateSignal);
 private slots:
 	inline void on_sendEvent() 
@@ -177,6 +177,8 @@ public:
 
     void removeColumnDataSource(const int& column);
 
+	void clear();
+
 	template<typename M1 = const std::function<void(void)>&>
 	inline void execLater(M1 func)
 	{
@@ -276,7 +278,8 @@ protected:
 
 	bool checkIndexRecursive(
 		const QModelIndex& index,
-		QAbstractItemModel::CheckIndexOptions options = CheckIndexOption::NoOption
+		const QAbstractItemModel::CheckIndexOptions &options = CheckIndexOption::NoOption,
+		const bool& isRoot = false
 	) const;
 
 	void handleNodeAddedRecursive(
@@ -327,6 +330,19 @@ inline void QUaModel<N, I>::removeColumnDataSource(const int& column)
 	{
 		m_columnCount--;
 	}
+}
+
+template<typename N, int I>
+inline void QUaModel<N, I>::clear()
+{
+	this->beginResetModel();
+	while (m_root->children().count() > 0)
+	{
+		auto wrapper = m_root->children().takeFirst();
+		// NOTE : QUaNodeWrapper destructor removes connections
+		delete wrapper;
+	}
+	this->endResetModel();
 }
 
 template<class N, int I>
@@ -611,19 +627,31 @@ inline void QUaModel<N, I>::removeWrapper(typename QUaModel<N, I>::QUaNodeWrappe
 	delete parent->children().takeAt(row);
 	// notify views that row removal has finished
 	this->endRemoveRows();
+	// force index re-creation (indirectly)
+	// so we can delete multiple rows in a loop inmediatly (without having to queue them)
+	bool indexOk = this->checkIndexRecursive(
+		index,
+		QAbstractItemModel::CheckIndexOption::IndexIsValid,
+		parent == m_root
+	);
+	Q_ASSERT(indexOk);
+	Q_UNUSED(indexOk);
 }
 
 template<typename N, int I>
 inline bool QUaModel<N, I>::checkIndexRecursive(
-	const QModelIndex& index, 
-	QAbstractItemModel::CheckIndexOptions options) const
+	const QModelIndex& index,
+	const QAbstractItemModel::CheckIndexOptions& options/* = CheckIndexOption::NoOption*/,
+	const bool& isRoot/* = false*/) const
 {
-	bool indexOk = this->checkIndex(
+	bool indexOk = isRoot || this->checkIndex(
 		index,
 		QAbstractItemModel::CheckIndexOption::IndexIsValid
 	);
 	Q_ASSERT(indexOk);
-	auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
+	auto wrapper = isRoot ? m_root :
+		static_cast<QUaNodeWrapper*>(index.internalPointer());
+	Q_ASSERT(wrapper);
 	for (int row = 0; row < wrapper->children().count(); row++)
 	{
 		indexOk = indexOk && this->checkIndexRecursive(
@@ -638,7 +666,7 @@ inline bool QUaModel<N, I>::checkIndexRecursive(
 template<typename N, int I>
 inline void QUaModel<N, I>::handleNodeAddedRecursive(QUaNodeWrapper* wrapper)
 {
-	emit m_eventer.nodeAdded(wrapper->node(), wrapper->index());
+	emit m_eventer.nodeAdded(wrapper);
 	for (auto child : wrapper->children())
 	{
 		this->handleNodeAddedRecursive(child);
@@ -730,8 +758,9 @@ QUaModel<N, I>::connectNodeAddedCallback(
 )
 {
 	return QObject::connect(&m_eventer, &QUaModelBaseEventer::nodeAdded, context,
-	[nodeAddedCallback](void* node, const QModelIndex& index) {
-		nodeAddedCallback(static_cast<X>(node), index);
+	[nodeAddedCallback](void * v_wrapper) {
+		auto wrapper = static_cast<QUaNodeWrapper*>(v_wrapper);
+		nodeAddedCallback(wrapper->node(), wrapper->index());
 	}, type);
 }
 
@@ -744,9 +773,10 @@ QUaModel<N, I>::connectNodeAddedCallback(
 	Qt::ConnectionType type/* = Qt::AutoConnection*/
 )
 {
-	return QObject::Connect(&m_eventer, &QUaModelBaseEventer::nodeAdded, context,
-	[nodeAddedCallback](void* node, const QModelIndex& index) {
-		nodeAddedCallback(static_cast<X*>(node), index);
+	return QObject::connect(&m_eventer, &QUaModelBaseEventer::nodeAdded, context,
+	[nodeAddedCallback](void* v_wrapper) {
+		auto wrapper = static_cast<QUaNodeWrapper*>(v_wrapper);
+		nodeAddedCallback(wrapper->node(), wrapper->index());
 	}, type);
 }
 

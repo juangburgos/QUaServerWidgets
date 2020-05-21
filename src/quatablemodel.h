@@ -22,7 +22,7 @@ public:
 	typename std::enable_if<!std::is_pointer<X>::value, bool>::type
 	removeNode(N * node);
 
-    void clear();
+	int count();
 
 protected:
     
@@ -60,14 +60,6 @@ inline void QUaTableModel<N, I>::addNode(N node)
     auto* wrapper = new typename QUaModel<N, I>::QUaNodeWrapper(node, QUaModel<N, I>::m_root, false);
 	// apprend to parent's children list
     QUaModel<N, I>::m_root->children() << wrapper;
-	// notify views that row addition has finished
-	this->endInsertRows();
-	// force index creation (indirectly)
-	// because sometimes they are not created until a view requires them
-	// and if a child is added and parent's index is not ready then crash
-    bool indexOk = this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid);
-	Q_ASSERT(indexOk);
-	Q_UNUSED(indexOk);
 	// bind callback for data change on each column
 	this->bindChangeCallbackForAllColumns(wrapper, false);
 	// subscribe to instance removed
@@ -86,6 +78,19 @@ inline void QUaTableModel<N, I>::addNode(N node)
 		// NOTE : QUaNodeWrapper destructor removes connections
 		wrapper->connections() << conn;
 	}
+	// notify views that row addition has finished
+	this->endInsertRows();
+	// force index creation (indirectly)
+	// because sometimes they are not created until a view requires them
+	// and if a child is added and parent's index is not ready then crash
+    bool indexOk = this->checkIndexRecursive(
+		this->index(row, 0, index), 
+		QAbstractItemModel::CheckIndexOption::IndexIsValid
+	);
+	Q_ASSERT(indexOk);
+	Q_UNUSED(indexOk);
+	// emit added signal
+	this->handleNodeAddedRecursive(wrapper);
 }
 
 template<typename N, int I>
@@ -95,6 +100,12 @@ inline void QUaTableModel<N, I>::addNodes(const QList<N>& nodes)
 	{
         this->addNode(node);
     }
+}
+
+template<typename N, int I>
+inline int QUaTableModel<N, I>::count()
+{
+	return QUaModel<N, I>::m_root->children().count();
 }
 
 template<typename N, int I>
@@ -127,19 +138,6 @@ QUaTableModel<N, I>::removeNode(N* node)
 	// NOTE : QUaNodeWrapper destructor removes connections
 	this->removeWrapper(wrapper);
 	return true;
-}
-
-template<typename N, int I>
-inline void QUaTableModel<N, I>::clear()
-{
-	this->beginResetModel();
-    while (QUaModel<N, I>::m_root->children().count() > 0)
-	{
-        auto wrapper = QUaModel<N, I>::m_root->children().takeFirst();
-		// NOTE : QUaNodeWrapper destructor removes connections
-		delete wrapper;
-	}
-	this->endResetModel();
 }
 
 #endif // QUATABLEMODEL_H

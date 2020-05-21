@@ -15,17 +15,6 @@ QUaModelItemTraits::IsValid<QUaLog>(const QUaLog *node)
 }
 
 template<>
-inline QUaLog 
-QUaModelItemTraits::GetInvalid<QUaLog>()
-{
-    return QUaLog({
-        QByteArray(), // null message
-        QUaLogLevel::Info,
-        QUaLogCategory::Server
-    });
-}
-
-template<>
 inline bool 
 QUaModelItemTraits::IsEqual<QUaLog>(const QUaLog* node1, const QUaLog* node2)
 {

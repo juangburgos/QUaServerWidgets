@@ -45,10 +45,28 @@ private:
     void setupQUaPropertyMenu        (QMenu& menu, QUaProperty         *prop   );
 
     QUaServer m_server;
+    static QUaServer * m_pserver;
+    static QMetaEnum m_logLevelMetaEnum;
+    static QMetaEnum m_logCategoryMetaEnum;
+    static QHash<
+        QUaLog*,
+        QList<std::function<void(void)>>
+    > m_hashDestroyLog;
     QUaNodeTreeModel      m_modelNodes;
     QSortFilterProxyModel m_proxyNodes;
 
     QUaLogTreeModel       m_modelLogs;
     QSortFilterProxyModel m_proxyLogs;
+
+    static QString logToString(const QQueue<QUaLog>& logOut);
+
+    friend QMetaObject::Connection
+        QUaModelItemTraits::NewChildCallback<QUaLog>(
+            QUaLog* log,
+            const std::function<void(QUaLog&)>& callback);
+    friend QMetaObject::Connection
+        QUaModelItemTraits::DestroyCallback<QUaLog>(
+            QUaLog* log,
+            const std::function<void(void)>& callback);
 };
 #endif // DIALOG_H

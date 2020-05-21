@@ -14,22 +14,25 @@
 #include "quaxmlserializer.h"
 #include "quasqliteserializer.h"
 
-QMetaEnum logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
-QMetaEnum logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
-QUaServer * g_server = nullptr;
+QUaServer* Dialog::m_pserver;
+QMetaEnum Dialog::m_logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
+QMetaEnum Dialog::m_logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
+QHash<
+    QUaLog*,
+    QList<std::function<void(void)>>
+> Dialog::m_hashDestroyLog;
 
-QString logToString(const QQueue<QUaLog>& logOut)
+QString Dialog::logToString(const QQueue<QUaLog>& logOut)
 {
-    Q_CHECK_PTR(g_server);
     QString strLog;
     for (auto &log : logOut)
     {
         // construct string
         strLog += QString("[%1] : %2\n")
-            .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
+            .arg(Dialog::m_logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
             .arg(log.message.constData());
         // also emit to show in log tree
-        emit g_server->logMessage(log);
+        emit Dialog::m_pserver->logMessage(log);
     }
     return strLog;
 }
@@ -40,9 +43,7 @@ Dialog::Dialog(QWidget *parent)
     , m_modelNodes(this)
 {
     ui->setupUi(this);
-
-    // set global server pointer
-    g_server = &m_server;
+    Dialog::m_pserver = &m_server;
     // setup node tree
     this->setupTreeNodes();
     // setup log tree
@@ -65,7 +66,8 @@ void Dialog::setupServer()
     // add extra method to test clear tree
     objs->addMethod("clearTree",
     [this]() {
-        m_modelNodes.setRootNode(nullptr);
+        //NOTE : if use m_modelNodes.setRootNode(nullptr); then dont forget to handle nodeFromIndex accordingly
+        m_modelNodes.clear();
     });
     // test serialize
     objs->addMethod("SerializeXML", [objs](QString strFileName) {
@@ -158,7 +160,11 @@ void Dialog::setupTreeNodes()
         QModelIndex index = m_proxyNodes.mapToSource(ui->treeViewNodes->indexAt(point));
         QMenu contextMenu(ui->treeViewNodes);
         auto node = m_modelNodes.nodeFromIndex(index);
-        Q_CHECK_PTR(node);
+        if (!node)
+        {
+            Q_ASSERT_X(node, "Tree context menu", "Use model clear() instead of setRootNode(nullptr)");
+            return;
+        }
         QString strType(node->metaObject()->className());
         // objects, objectsext and folders are all objects
         if (strType.compare("QUaProperty", Qt::CaseSensitive) == 0)
@@ -375,7 +381,6 @@ void Dialog::setupTreeNodes()
             qDebug() << "paste target" << node->nodeId();
         }
     });
-
     // allow sorting
     m_proxyNodes.setSourceModel(&m_modelNodes);
     ui->treeViewNodes->setModel(&m_proxyNodes);
@@ -388,24 +393,20 @@ QUaModelItemTraits::NewChildCallback<QUaLog>(
     QUaLog *log, 
     const std::function<void(QUaLog&)> &callback)
 {
-    Q_CHECK_PTR(g_server);
     // valid logs do not have children
     if (QUaModelItemTraits::IsValid<QUaLog>(log))
     {
         return QMetaObject::Connection();
     }
     // invalid logs (only one; root) have as children all valid logs
-    return QObject::connect(g_server, &QUaServer::logMessage,
+    return QObject::connect(Dialog::m_pserver, &QUaServer::logMessage,
     [callback](const QUaLog& log) {
         QUaLog nlog = log;
         callback(nlog);
     });
 }
 
-QHash<
-    QUaLog*, 
-    QList<std::function<void(void)>>
-> g_hashDestroyLog;
+
 
 template<>
 inline QMetaObject::Connection
@@ -413,7 +414,7 @@ QUaModelItemTraits::DestroyCallback<QUaLog>(
     QUaLog* log,
     const std::function<void(void)> &callback)
 {
-    g_hashDestroyLog[log] << callback;
+    Dialog::m_hashDestroyLog[log] << callback;
     return QMetaObject::Connection();
 }
 
@@ -433,7 +434,7 @@ void Dialog::setupTreeLogs()
     [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
-			return logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
+			return m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
 		}
 		return QVariant();
     }/* other callbacks for data that changes or editable */);
@@ -441,7 +442,7 @@ void Dialog::setupTreeLogs()
     [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
-			return logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
+			return m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
 		}
 		return QVariant();
     }/* other callbacks for data that changes or editable */);
@@ -460,10 +461,10 @@ void Dialog::setupTreeLogs()
     [this](QList<QUaLog*> &logs) {
         while (logs.count() > 0)
         {
-            Q_ASSERT(g_hashDestroyLog.contains(logs.first()));
-            for (auto callback : g_hashDestroyLog.take(logs.takeFirst()))
+            Q_ASSERT(m_hashDestroyLog.contains(logs.first()));
+            for (auto callback : m_hashDestroyLog.take(logs.takeFirst()))
             {
-                m_modelLogs.execLater(callback);
+                callback();
             }
         }
     });
@@ -475,8 +476,8 @@ void Dialog::setupTreeLogs()
             mime->setText(
                 mime->text() + QString("[%1] [%2] [%3] : %4.\n")
                 .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
-                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
-                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
+                .arg(m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
+                .arg(m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
                 .arg(QString(log->message))
             );
         }
