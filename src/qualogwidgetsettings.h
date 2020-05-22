@@ -2,6 +2,7 @@
 #define QUALOGWIDGETSETTINGS_H
 
 #include <QWidget>
+#include <QUaServer>
 
 class QUaLogWidget;
 
@@ -22,6 +23,9 @@ public:
 
 private:
     Ui::QUaLogWidgetSettings *ui;
+    QHash<QUaLogLevel, bool> m_logsToLogByLevel;
+    QHash<QUaLogCategory, bool> m_logsToLogByCategory;
+    QHash<QUaLogLevel, QBrush> m_logsToPaintByLevel;
 };
 
 #endif // QUALOGWIDGETSETTINGS_H

@@ -16,6 +16,8 @@ class QUaLogWidget;
 typedef QUaTableModel<QUaLog> QUaLogTableModel;
 typedef QUaTreeView  <QUaLog> QUaLogTableView;
 
+class QUaLogWidgetSettings;
+
 class QUaLogWidget : public QWidget
 {
     Q_OBJECT
@@ -24,8 +26,17 @@ public:
     explicit QUaLogWidget(QWidget *parent = nullptr);
     ~QUaLogWidget();
 
+    enum class Columns {
+        Timestamp = 0,
+        Level     = 1,
+        Category  = 2,
+        Message   = 3,
+        Invalid
+    };
+    Q_ENUM(Columns)
+
     enum class LogLevelFilter {
-        AnyLevel = static_cast<int>(QUaLogLevel::Trace) - 1,
+        All      = static_cast<int>(QUaLogLevel::Trace) - 1,
 		Trace    = static_cast<int>(QUaLogLevel::Trace  ),
 		Debug    = static_cast<int>(QUaLogLevel::Debug  ),
 		Info     = static_cast<int>(QUaLogLevel::Info   ),
@@ -37,7 +48,7 @@ public:
 	Q_ENUM(LogLevelFilter)
 
     enum class LogCategoryFilter {
-        AnyCategory    = static_cast<int>(QUaLogCategory::Network) - 1,
+        All            = static_cast<int>(QUaLogCategory::Network) - 1,
 		Network        = static_cast<int>(QUaLogCategory::Network       ),
 		SecureChannel  = static_cast<int>(QUaLogCategory::SecureChannel ),
 		Session        = static_cast<int>(QUaLogCategory::Session       ),
@@ -55,7 +66,17 @@ public:
     quint32 maxEntries() const;
     void setMaxEntries(const quint32& maxEntries);
 
+    QString timeFormat() const;
+    void setTimeFormat(const QString& strTimeFormat);
 
+    bool isColumnVisible(const QUaLogWidget::Columns& column) const;
+    void setColumnVisible(const QUaLogWidget::Columns& column, const bool &visible);
+
+    QByteArray highlightMessageIfContains() const;
+    void setHighlightMessageIfContains(const QByteArray& text);
+
+    QBrush levelColor(const QUaLogLevel &level) const;
+    void setLevelColor(const QUaLogLevel& level, const QBrush& color);
 
 public slots:
     void addLog(const QUaLog& log);
@@ -72,14 +93,27 @@ private slots:
 private:
     Ui::QUaLogWidget *ui;
     quint32 m_maxEntries;
-    static QMetaEnum m_logLevelMetaEnum;
-    static QMetaEnum m_logCategoryMetaEnum;
-    static QMetaEnum m_logLevelFilterMetaEnum;
-    static QMetaEnum m_logCategoryFilterMetaEnum;
+    QString m_timeFormat;
+    QByteArray m_byteHighlight;
 
     QUaLogTableModel     m_modelLogs;
     QUaLambdaFilterProxy m_proxyLogs;
+
     QMultiMap<QDateTime, QUaLog*> m_logsByDate;
+    QSet<QUaLog*> m_logsToHighlight;
+
+    QHash<QUaLogLevel, bool> m_logsToLogByLevel;
+    QHash<QUaLogCategory, bool> m_logsToLogByCategory;
+    QHash<QUaLogLevel, QBrush> m_logsToPaintByLevel;
+
+    static QMetaEnum m_logLevelMetaEnum;
+    static QMetaEnum m_logCategoryMetaEnum;
+    static QMetaEnum m_columnsMetaEnum;
+    static QMetaEnum m_logLevelFilterMetaEnum;
+    static QMetaEnum m_logCategoryFilterMetaEnum;
+
+
+    friend QUaLogWidgetSettings;
 
     friend QMetaObject::Connection
         QUaModelItemTraits::DestroyCallback<QUaLog>(
@@ -88,6 +122,7 @@ private:
 
     void setupTable();
     void enforceMaxEntries();
+    void purgeLogs();
 
     bool isFilterVisible() const;
     void setFilterVisible(const bool& isVisible);

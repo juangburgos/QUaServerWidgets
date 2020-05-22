@@ -6,8 +6,9 @@
 QMetaEnum QUaLogWidget::m_logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
 QMetaEnum QUaLogWidget::m_logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
 
-QMetaEnum QUaLogWidget::m_logLevelFilterMetaEnum   ; // = QMetaEnum::fromType<QUaLogWidget::LogLevelFilter>();
-QMetaEnum QUaLogWidget::m_logCategoryFilterMetaEnum; // = QMetaEnum::fromType<QUaLogWidget::LogCategoryFilter>();
+QMetaEnum QUaLogWidget::m_columnsMetaEnum;
+QMetaEnum QUaLogWidget::m_logLevelFilterMetaEnum   ;
+QMetaEnum QUaLogWidget::m_logCategoryFilterMetaEnum;
 
 QUaLogWidget::QUaLogWidget(QWidget *parent) :
     QWidget(parent),
@@ -16,10 +17,23 @@ QUaLogWidget::QUaLogWidget(QWidget *parent) :
     ui->setupUi(this);
     // defaults
     m_maxEntries = 1000;
+    m_timeFormat = "dd.MM.yyyy hh:mm:ss.zzz";
     // NOTE : static definition crashes?
+    m_columnsMetaEnum           = QMetaEnum::fromType<Columns>();
     m_logLevelFilterMetaEnum    = QMetaEnum::fromType<LogLevelFilter>();
     m_logCategoryFilterMetaEnum = QMetaEnum::fromType<LogCategoryFilter>();
     // init ui
+    for (int i = static_cast<int>(LogLevelFilter::All) + 1; i < static_cast<int>(LogLevelFilter::Invalid); i++)
+    {
+        // log all levels by default
+        m_logsToLogByLevel[static_cast<QUaLogLevel>(i)] = true;
+        m_logsToPaintByLevel[static_cast<QUaLogLevel>(i)] = QBrush(Qt::black);
+    }
+    for (int i = static_cast<int>(LogCategoryFilter::All) + 1; i < static_cast<int>(LogCategoryFilter::Invalid); i++)
+    {
+        // log all categories by default
+        m_logsToLogByCategory[static_cast<QUaLogCategory>(i)] = true;
+    }
     this->setupTable();
     this->setupFilterWidgets();
 }
@@ -40,8 +54,88 @@ void QUaLogWidget::setMaxEntries(const quint32& maxEntries)
     this->enforceMaxEntries();
 }
 
+QString QUaLogWidget::timeFormat() const
+{
+    return m_timeFormat;
+}
+
+void QUaLogWidget::setTimeFormat(const QString& strTimeFormat)
+{
+    m_timeFormat = strTimeFormat;
+}
+
+bool QUaLogWidget::isColumnVisible(const QUaLogWidget::Columns& column) const
+{
+    return !ui->treeViewLog->isColumnHidden(static_cast<int>(column));
+}
+
+void QUaLogWidget::setColumnVisible(const QUaLogWidget::Columns& column, const bool& visible)
+{
+    ui->treeViewLog->setColumnHidden(static_cast<int>(column), !visible);
+    
+    if (column == Columns::Level)
+    {
+        ui->comboBoxFilterLevel->setVisible(visible);
+        if (!visible)
+        {
+            // release filter
+            int indexAny = ui->comboBoxFilterLevel->findData(QVariant::fromValue(LogLevelFilter::All));
+            Q_ASSERT(indexAny >= 0); // NOTE : combo index is not enum value
+            ui->comboBoxFilterLevel->setCurrentIndex(indexAny);         
+        }
+    }
+    if (column == Columns::Category)
+    {
+        ui->comboBoxFilterCateg->setVisible(visible);
+        if (!visible)
+        {
+            // release filter
+            int indexAny = ui->comboBoxFilterCateg->findData(QVariant::fromValue(LogCategoryFilter::All));
+            Q_ASSERT(indexAny >= 0); // NOTE : combo index is not enum value
+            ui->comboBoxFilterCateg->setCurrentIndex(indexAny);
+        }
+    }
+    if (column == Columns::Message)
+    {
+        ui->lineEditFilterText->setVisible(visible);
+        if (!visible)
+        {
+            ui->lineEditFilterText->clear();
+        }
+    }
+}
+
+QByteArray QUaLogWidget::highlightMessageIfContains() const
+{
+    return m_byteHighlight;
+}
+
+void QUaLogWidget::setHighlightMessageIfContains(const QByteArray& text)
+{
+    m_byteHighlight = text;
+}
+
+QBrush QUaLogWidget::levelColor(const QUaLogLevel& level) const
+{
+    return m_logsToPaintByLevel[level];
+}
+
+void QUaLogWidget::setLevelColor(const QUaLogLevel& level, const QBrush& color)
+{
+    m_logsToPaintByLevel[level] = color;
+}
+
 void QUaLogWidget::addLog(const QUaLog& log)
 {
+    // check if needs to be logged first
+    if (!m_logsToLogByLevel[log.level])
+    {
+        return;
+    }
+    if (!m_logsToLogByCategory[log.category])
+    {
+        return;
+    }
     m_modelLogs.addNode(log);
 }
 
@@ -57,36 +151,88 @@ void QUaLogWidget::setupTable()
         Q_ASSERT(m_modelLogs.count() == m_logsByDate.size());
     });
     // setup model column data sources
-    m_modelLogs.setColumnDataSource(0, tr("Timestamp"),
-    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+    int timestampColumn = static_cast<int>(Columns::Timestamp);
+    m_modelLogs.setColumnDataSource(timestampColumn, QUaLogWidget::m_columnsMetaEnum.valueToKey(timestampColumn),
+    [this](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
-			return log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz");
+			return log->timestamp.toLocalTime().toString(m_timeFormat);
 		}
+        if (role == Qt::FontRole && m_logsToHighlight.contains(log))
+        {
+            QFont font;
+            font.setBold(true);
+            return font;
+        }
+        if (role == Qt::ForegroundRole)
+        {
+            return m_logsToPaintByLevel[log->level];
+        }
 		return QVariant();
     }/* other callbacks for data that changes or editable */);
-    m_modelLogs.setColumnDataSource(1, tr("Level"),
-    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+    int levelColumn = static_cast<int>(Columns::Level);
+    m_modelLogs.setColumnDataSource(levelColumn, QUaLogWidget::m_columnsMetaEnum.valueToKey(levelColumn),
+    [this](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
 			return QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level));
 		}
+        if (role == Qt::FontRole && m_logsToHighlight.contains(log))
+        {
+            QFont font;
+            font.setBold(true);
+            return font;
+        }
+        if (role == Qt::ForegroundRole)
+        {
+            return m_logsToPaintByLevel[log->level];
+        }
 		return QVariant();
     }/* other callbacks for data that changes or editable */);
-    m_modelLogs.setColumnDataSource(2, tr("Category"),
-    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+    int categoryColumn = static_cast<int>(Columns::Category);
+    m_modelLogs.setColumnDataSource(categoryColumn, QUaLogWidget::m_columnsMetaEnum.valueToKey(categoryColumn),
+    [this](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
 			return QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category));
 		}
+        if (role == Qt::FontRole && m_logsToHighlight.contains(log))
+        {
+            QFont font;
+            font.setBold(true);
+            return font;
+        }
+        if (role == Qt::ForegroundRole)
+        {
+            return m_logsToPaintByLevel[log->level];
+        }
 		return QVariant();
     }/* other callbacks for data that changes or editable */);
-    m_modelLogs.setColumnDataSource(3, tr("Message"),
-    [](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
+    int messageColumn = static_cast<int>(Columns::Message);
+    m_modelLogs.setColumnDataSource(messageColumn, QUaLogWidget::m_columnsMetaEnum.valueToKey(messageColumn),
+    [this](QUaLog* log, const Qt::ItemDataRole& role) -> QVariant {
 		if (role == Qt::DisplayRole)
 		{
 			return log->message;
 		}
+        if (role == Qt::FontRole)
+        {
+            QFont font;
+            if (!m_byteHighlight.isEmpty() && log->message.contains(m_byteHighlight))
+            {
+                font.setBold(true);
+                m_logsToHighlight << log;
+            }
+            else
+            {
+                m_logsToHighlight.remove(log);
+            }
+            return font;
+        }
+        if (role == Qt::ForegroundRole)
+        {
+            return m_logsToPaintByLevel[log->level];
+        }
 		return QVariant();
     });
     // support delete and copy
@@ -97,6 +243,7 @@ void QUaLogWidget::setupTable()
         while (logs.count() > 0)
         {
             auto log = logs.takeFirst();
+            m_logsToHighlight.remove(log);
             Q_ASSERT(m_logsByDate.contains(log->timestamp, log));
             m_logsByDate.remove(log->timestamp, log);
             m_modelLogs.removeNode(log);
@@ -104,13 +251,13 @@ void QUaLogWidget::setupTable()
         Q_ASSERT(m_modelLogs.count() == m_logsByDate.size());
     });
     ui->treeViewLog->setCopyCallback(
-    [](const QList<QUaLog*> & logs) {
+    [this](const QList<QUaLog*> & logs) {
         auto mime = new QMimeData();
         for (auto log : logs)
         {
             mime->setText(
                 mime->text() + QString("[%1] [%2] [%3] : %4.\n")
-                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
+                .arg(log->timestamp.toLocalTime().toString(m_timeFormat))
                 .arg(QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
                 .arg(QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
                 .arg(QString(log->message))
@@ -140,8 +287,8 @@ void QUaLogWidget::setupTable()
         LogLevelFilter    levelFilter = ui->comboBoxFilterLevel->currentData().value<LogLevelFilter   >();
         LogCategoryFilter categFilter = ui->comboBoxFilterCateg->currentData().value<LogCategoryFilter>();
         QByteArray strMessageFilter = ui->lineEditFilterText->text().toUtf8();
-        bool showLevel = levelFilter == LogLevelFilter::AnyLevel || log->level == static_cast<QUaLogLevel>(levelFilter);
-        bool showCateg = categFilter == LogCategoryFilter::AnyCategory || log->category == static_cast<QUaLogCategory>(categFilter);
+        bool showLevel = levelFilter == LogLevelFilter::All || log->level == static_cast<QUaLogLevel>(levelFilter);
+        bool showCateg = categFilter == LogCategoryFilter::All || log->category == static_cast<QUaLogCategory>(categFilter);
         bool showMessage = strMessageFilter.isEmpty() ? true : log->message.contains(strMessageFilter);
         return showLevel && showCateg && showMessage;
     });
@@ -153,13 +300,33 @@ void QUaLogWidget::enforceMaxEntries()
     {
         auto begin = m_logsByDate.begin();
         m_modelLogs.removeNode(begin.value());
+        m_logsToHighlight.remove(begin.value());
         m_logsByDate.erase(begin);
     }
     Q_ASSERT(m_modelLogs.count() == m_logsByDate.size());
 }
 
+void QUaLogWidget::purgeLogs()
+{
+    auto iter = m_logsByDate.begin();
+    while(iter != m_logsByDate.end())
+    {
+        QDateTime timestamp = iter.key();
+        auto log = iter.value();
+        iter++;
+        if (m_logsToLogByLevel[log->level] && m_logsToLogByCategory[log->category])
+        {
+            continue;
+        }
+        m_modelLogs.removeNode(log);
+        m_logsToHighlight.remove(log);
+        m_logsByDate.remove(timestamp, log);
+    };
+}
+
 void QUaLogWidget::on_pushButtonClear_clicked()
 {
+    m_logsToHighlight.clear();
     m_logsByDate.clear();
     m_modelLogs.clear();
     Q_ASSERT(m_modelLogs.count() == m_logsByDate.size());
@@ -200,10 +367,10 @@ void QUaLogWidget::setFilterVisible(const bool& isVisible)
     if (!isVisible)
     {
         // reset to show all
-        int indexAny = ui->comboBoxFilterLevel->findData(QVariant::fromValue(LogLevelFilter::AnyLevel));
+        int indexAny = ui->comboBoxFilterLevel->findData(QVariant::fromValue(LogLevelFilter::All));
         Q_ASSERT(indexAny >= 0); // NOTE : combo index is not enum value
         ui->comboBoxFilterLevel->setCurrentIndex(indexAny);
-        indexAny = ui->comboBoxFilterCateg->findData(QVariant::fromValue(LogCategoryFilter::AnyCategory));
+        indexAny = ui->comboBoxFilterCateg->findData(QVariant::fromValue(LogCategoryFilter::All));
         Q_ASSERT(indexAny >= 0); // NOTE : combo index is not enum value
         ui->comboBoxFilterCateg->setCurrentIndex(indexAny);
         // clear filter text
@@ -216,7 +383,7 @@ void QUaLogWidget::setFilterVisible(const bool& isVisible)
 void QUaLogWidget::setupFilterWidgets()
 {
     // setup combobox level
-    for (int i = static_cast<int>(LogLevelFilter::AnyLevel); i < static_cast<int>(LogLevelFilter::Invalid); i++)
+    for (int i = static_cast<int>(LogLevelFilter::All); i < static_cast<int>(LogLevelFilter::Invalid); i++)
     {
         ui->comboBoxFilterLevel->addItem(
             QUaLogWidget::m_logLevelFilterMetaEnum.valueToKey(i),
@@ -224,7 +391,7 @@ void QUaLogWidget::setupFilterWidgets()
         );
     }
     // setup combobox category
-    for (int i = static_cast<int>(LogCategoryFilter::AnyCategory); i < static_cast<int>(LogCategoryFilter::Invalid); i++)
+    for (int i = static_cast<int>(LogCategoryFilter::All); i < static_cast<int>(LogCategoryFilter::Invalid); i++)
     {
         ui->comboBoxFilterCateg->addItem(
             QUaLogWidget::m_logCategoryFilterMetaEnum.valueToKey(i),
