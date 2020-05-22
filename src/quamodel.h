@@ -3,8 +3,11 @@
 
 #include <QQueue>
 #include <QAbstractItemModel>
+#include <QSortFilterProxyModel>
 #include <QUaModelItemTraits>
 
+// NOTE : neede to emit Qt events from templated classes because
+// templated classes cannot inherit or be QObjects
 class QUaModelBaseEventer : public QObject
 {
 	Q_OBJECT
@@ -967,6 +970,55 @@ inline std::function<void()>
 		emit model->dataChanged(index, index, QVector<int>() << Qt::DisplayRole);
 	};
 }
+
+class QUaLambdaFilterProxy : public QSortFilterProxyModel
+{
+	Q_OBJECT
+
+public:
+	inline QUaLambdaFilterProxy(QObject* parent = 0) : QSortFilterProxyModel(parent) {};
+
+	inline void forceReFilter()
+	{
+		this->invalidateFilter();
+	};
+
+	template<typename M>
+	inline void setFilterAcceptsRow(const M& callback)
+	{
+		m_filterAcceptsRow = [callback](int sourceRow, const QModelIndex& sourceParent) {
+			return callback(sourceRow, sourceParent);
+		};
+	};
+
+	template<typename M>
+	inline void setLessThan(const M& callback)
+	{
+		m_lessThan = [callback](const QModelIndex& left, const QModelIndex& right) {
+			return callback(left, right);
+		};
+	};
+
+protected:
+	inline bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
+	{
+		// call callback if defined, else call base implementation
+		return m_filterAcceptsRow ? 
+			m_filterAcceptsRow(sourceRow, sourceParent) : 
+			QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
+	};
+	inline bool lessThan(const QModelIndex& left, const QModelIndex& right) const override
+	{
+		// call callback if defined, else call base implementation
+		return m_lessThan ? 
+			m_lessThan(left, right) : 
+			QSortFilterProxyModel::lessThan(left, right);
+	};
+
+private:
+	std::function<bool(int, const QModelIndex&)> m_filterAcceptsRow;
+	std::function<bool(const QModelIndex&, const QModelIndex&)> m_lessThan;
+};
 
 #endif // QUANODEMODEL_H
 

@@ -2,12 +2,15 @@ INCLUDEPATH += $$PWD/
 
 FORMS += \
     $$PWD/qualogwidget.ui \
-    $$PWD/quaserverwidget.ui
-
+    $$PWD/qualogwidgetsettings.ui \
+    $$PWD/quaserverwidget.ui \
+    $$PWD/quacommondialog.ui
 
 HEADERS += \
     $$PWD/qualogwidget.h \
+    $$PWD/qualogwidgetsettings.h \
     $$PWD/quaserverwidget.h \
+    $$PWD/quacommondialog.h \
     $$PWD/quamodel.h \
     $$PWD/quatablemodel.h \
     $$PWD/quatreemodel.h \
@@ -22,5 +25,7 @@ HEADERS += \
 
 SOURCES += \
     $$PWD/qualogwidget.cpp \
-    $$PWD/quaserverwidget.cpp
+    $$PWD/qualogwidgetsettings.cpp \
+    $$PWD/quaserverwidget.cpp \
+    $$PWD/quacommondialog.cpp
 

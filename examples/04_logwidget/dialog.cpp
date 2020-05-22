@@ -6,13 +6,11 @@ Dialog::Dialog(QWidget *parent) :
     ui(new Ui::Dialog)
 {
     ui->setupUi(this);
-
+    // configure log widget
+    ui->widgetLog->setMaxEntries(100);
     QObject::connect(&m_server, &QUaServer::logMessage, ui->widgetLog, &QUaLogWidget::addLog);
-
-    ui->widgetLog->setMaxEntries(15);
-
+    // run server
     m_server.start();
-
 }
 
 Dialog::~Dialog()
