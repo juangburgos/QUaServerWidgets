@@ -66,17 +66,32 @@ public:
     quint32 maxEntries() const;
     void setMaxEntries(const quint32& maxEntries);
 
+    QString csvSeparator() const;
+    void setCsvSeparator(const QString& csvSeparator);
+
     QString timeFormat() const;
     void setTimeFormat(const QString& strTimeFormat);
-
-    bool isColumnVisible(const QUaLogWidget::Columns& column) const;
-    void setColumnVisible(const QUaLogWidget::Columns& column, const bool &visible);
 
     QByteArray highlightMessageIfContains() const;
     void setHighlightMessageIfContains(const QByteArray& text);
 
     QBrush levelColor(const QUaLogLevel &level) const;
     void setLevelColor(const QUaLogLevel& level, const QBrush& color);
+
+    bool isColumnVisible(const QUaLogWidget::Columns& column) const;
+    void setColumnVisible(const QUaLogWidget::Columns& column, const bool &visible);
+
+    bool isFilterVisible() const;
+    void setFilterVisible(const bool& visible);
+
+    bool isSettingsVisible() const;
+    void setSettingsVisible(const bool& visible);
+
+    bool isExportCsvVisible() const;
+    void setExportCsvVisible(const bool& visible);
+
+    bool isClearVisible() const;
+    void setClearVisible(const bool& visible);
 
 public slots:
     void addLog(const QUaLog& log);
@@ -93,6 +108,9 @@ private slots:
 private:
     Ui::QUaLogWidget *ui;
     quint32 m_maxEntries;
+    QString m_strCsvSeparator;
+    QString m_strCsvFormat;
+    QString m_strLastPathUsed;
     QString m_timeFormat;
     QByteArray m_byteHighlight;
 
@@ -124,8 +142,10 @@ private:
     void enforceMaxEntries();
     void purgeLogs();
 
-    bool isFilterVisible() const;
-    void setFilterVisible(const bool& isVisible);
+    bool isFilterShown() const;
+    void setFilterShown(const bool& isShown);
+
+    void updateSpacerLabelVisible();
 
     void setupFilterWidgets();
 

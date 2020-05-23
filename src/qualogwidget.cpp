@@ -3,6 +3,13 @@
 
 #include "qualogwidgetsettings.h"
 
+#include <QFile>
+#include <QFileInfo>
+#include <QTextStream>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QMessageBox>
+
 QMetaEnum QUaLogWidget::m_logLevelMetaEnum    = QMetaEnum::fromType<QUaLogLevel>();
 QMetaEnum QUaLogWidget::m_logCategoryMetaEnum = QMetaEnum::fromType<QUaLogCategory>();
 
@@ -17,7 +24,9 @@ QUaLogWidget::QUaLogWidget(QWidget *parent) :
     ui->setupUi(this);
     // defaults
     m_maxEntries = 1000;
+    m_strCsvSeparator = ", ";
     m_timeFormat = "dd.MM.yyyy hh:mm:ss.zzz";
+    m_strCsvFormat = QString("%1%5%2%5%3%5%4\n");
     // NOTE : static definition crashes?
     m_columnsMetaEnum           = QMetaEnum::fromType<Columns>();
     m_logLevelFilterMetaEnum    = QMetaEnum::fromType<LogLevelFilter>();
@@ -52,6 +61,16 @@ void QUaLogWidget::setMaxEntries(const quint32& maxEntries)
 {
     m_maxEntries = maxEntries;
     this->enforceMaxEntries();
+}
+
+QString QUaLogWidget::csvSeparator() const
+{
+    return m_strCsvSeparator;
+}
+
+void QUaLogWidget::setCsvSeparator(const QString& csvSeparator)
+{
+    m_strCsvSeparator = csvSeparator;
 }
 
 QString QUaLogWidget::timeFormat() const
@@ -123,6 +142,68 @@ QBrush QUaLogWidget::levelColor(const QUaLogLevel& level) const
 void QUaLogWidget::setLevelColor(const QUaLogLevel& level, const QBrush& color)
 {
     m_logsToPaintByLevel[level] = color;
+}
+
+bool QUaLogWidget::isFilterVisible() const
+{
+    return ui->frameFilter->isEnabled();
+}
+
+void QUaLogWidget::setFilterVisible(const bool& visible)
+{
+    ui->frameFilter->setVisible(visible);
+    ui->frameFilter->setEnabled(visible);
+    ui->labelSpacer->setSizePolicy(
+        visible ? QSizePolicy::Minimum : QSizePolicy::Expanding,
+        QSizePolicy::Minimum
+    );
+    this->updateSpacerLabelVisible();
+}
+
+bool QUaLogWidget::isSettingsVisible() const
+{
+    return ui->pushButtonSettings->isEnabled();
+}
+
+void QUaLogWidget::setSettingsVisible(const bool& visible)
+{
+    ui->pushButtonSettings->setVisible(visible);
+    ui->pushButtonSettings->setEnabled(visible);
+    this->updateSpacerLabelVisible();
+}
+
+bool QUaLogWidget::isExportCsvVisible() const
+{
+    return ui->pushButtonExportCsv->isEnabled();
+}
+
+void QUaLogWidget::setExportCsvVisible(const bool& visible)
+{
+    ui->pushButtonExportCsv->setVisible(visible);
+    ui->pushButtonExportCsv->setEnabled(visible);
+    this->updateSpacerLabelVisible();
+}
+
+bool QUaLogWidget::isClearVisible() const
+{
+    return ui->pushButtonClear->isEnabled();
+}
+
+void QUaLogWidget::setClearVisible(const bool& visible)
+{
+    ui->pushButtonClear->setVisible(visible);
+    ui->pushButtonClear->setEnabled(visible);
+    this->updateSpacerLabelVisible();
+}
+
+void QUaLogWidget::updateSpacerLabelVisible()
+{
+    bool visible =
+        this->isFilterVisible() ||
+        this->isSettingsVisible() ||
+        this->isExportCsvVisible() ||
+        this->isClearVisible();
+    ui->labelSpacer->setVisible(visible);
 }
 
 void QUaLogWidget::addLog(const QUaLog& log)
@@ -256,11 +337,12 @@ void QUaLogWidget::setupTable()
         for (auto log : logs)
         {
             mime->setText(
-                mime->text() + QString("[%1] [%2] [%3] : %4.\n")
+                mime->text() + m_strCsvFormat
                 .arg(log->timestamp.toLocalTime().toString(m_timeFormat))
                 .arg(QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
                 .arg(QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
                 .arg(QString(log->message))
+                .arg(m_strCsvSeparator)
             );
         }
         return mime;
@@ -278,7 +360,7 @@ void QUaLogWidget::setupTable()
         {
             return true;
         }
-        if (!this->isFilterVisible())
+        if (!this->isFilterShown())
         {
             return true;
         }
@@ -334,12 +416,54 @@ void QUaLogWidget::on_pushButtonClear_clicked()
 
 void QUaLogWidget::on_pushButtonExportCsv_clicked()
 {
-
+    // select file
+    QString strSaveFile = QFileDialog::getSaveFileName(this, tr("Save File"),
+            m_strLastPathUsed.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : m_strLastPathUsed,
+            tr("CSV (*.csv *.txt)"));
+    // ignore if empty
+    if (strSaveFile.isEmpty() || strSaveFile.isNull())
+    {
+        return;
+    }
+    // create CSV
+    QString strCsv;
+    auto iter = m_logsByDate.begin();
+    while (iter != m_logsByDate.end())
+    {
+        auto log = iter.value();
+        iter++;
+        strCsv = strCsv + m_strCsvFormat
+            .arg(log->timestamp.toLocalTime().toString(m_timeFormat))
+            .arg(QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
+            .arg(QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
+            .arg(QString(log->message))
+            .arg(m_strCsvSeparator);
+    };
+    // save to file
+    QFile file(strSaveFile);
+    if (file.open(QIODevice::ReadWrite | QFile::Truncate))
+    {
+        // save last path used
+        m_strLastPathUsed = QFileInfo(file).absoluteFilePath();
+        // write
+        QTextStream stream(&file);
+        stream << strCsv;
+    }
+    else
+    {
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            tr("Error opening file %1 for write operations.").arg(strSaveFile)
+        );
+    }
+    // close file
+    file.close();
 }
 
 void QUaLogWidget::on_checkBoxFilter_toggled(bool checked)
 {
-    this->setFilterVisible(checked);
+    this->setFilterShown(checked);
 }
 
 void QUaLogWidget::on_pushButtonSettings_clicked()
@@ -355,16 +479,16 @@ void QUaLogWidget::on_pushButtonSettings_clicked()
     this->showSettingsDialog(dialog);
 }
 
-bool QUaLogWidget::isFilterVisible() const
+bool QUaLogWidget::isFilterShown() const
 {
     return ui->frameFilterOptions->isEnabled();
 }
 
-void QUaLogWidget::setFilterVisible(const bool& isVisible)
+void QUaLogWidget::setFilterShown(const bool& isShown)
 {
-    ui->frameFilterOptions->setEnabled(isVisible);
-    ui->frameFilterOptions->setVisible(isVisible);
-    if (!isVisible)
+    ui->frameFilterOptions->setEnabled(isShown);
+    ui->frameFilterOptions->setVisible(isShown);
+    if (!isShown)
     {
         // reset to show all
         int indexAny = ui->comboBoxFilterLevel->findData(QVariant::fromValue(LogLevelFilter::All));
@@ -399,7 +523,7 @@ void QUaLogWidget::setupFilterWidgets()
         );
     }
     // set default values (initially hidden)
-    this->setFilterVisible(false);
+    this->setFilterShown(false);
     // force refilter when filter changed
     QObject::connect(ui->comboBoxFilterLevel, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
         [this]() {

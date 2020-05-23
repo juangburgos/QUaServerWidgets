@@ -79,6 +79,7 @@ void QUaLogWidgetSettings::readSettings(const QUaLogWidget& logWidget)
 {
     // general
     ui->spinBoxMaxEntries->setValue(logWidget.maxEntries());
+    ui->lineEditCsvSeparator->setText(logWidget.csvSeparator());
     // time
     ui->lineEditTimestampFormat->setText(logWidget.timeFormat());
     ui->checkTimestampShow->setChecked(logWidget.isColumnVisible(QUaLogWidget::Columns::Timestamp));
@@ -103,6 +104,7 @@ void QUaLogWidgetSettings::writeSettings(QUaLogWidget& logWidget) const
 {
     // general
     logWidget.setMaxEntries(ui->spinBoxMaxEntries->value());
+    logWidget.setCsvSeparator(ui->lineEditCsvSeparator->text());
     // time
     logWidget.setTimeFormat(ui->lineEditTimestampFormat->text());
     logWidget.setColumnVisible(QUaLogWidget::Columns::Timestamp, ui->checkTimestampShow->isChecked());
