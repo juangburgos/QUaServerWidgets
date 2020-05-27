@@ -7,6 +7,7 @@ FORMS += \
     $$PWD/quacommondialog.ui
 
 HEADERS += \
+    $$PWD/quawidgeteventfilter.h \
     $$PWD/qualogwidget.h \
     $$PWD/qualogwidgetsettings.h \
     $$PWD/quaserverwidget.h \
