@@ -21,17 +21,17 @@ public:
     {
         m_handledTypes << handleType;
         return QObject::connect(this, &QUaWidgetEventFilter::handleCallback, this->parent(),
-            [handleType, callback](const QEvent::Type& emitType) {
+            [handleType, callback](const QEvent::Type& emitType, QEvent* event) {
                 if (emitType != handleType)
                 {
                     return;
                 }
-                callback();
+                callback(event);
             });
     }
 
 signals:
-    void handleCallback(const QEvent::Type& type, QPrivateSignal);
+    void handleCallback(const QEvent::Type& type, QEvent* event, QPrivateSignal);
 
 protected:
     QSet<QEvent::Type> m_handledTypes;
@@ -39,7 +39,7 @@ protected:
     {
         if (m_handledTypes.contains(event->type()))
         {
-            emit this->handleCallback(event->type(), QPrivateSignal());
+            emit this->handleCallback(event->type(), event, QPrivateSignal());
             return true;
         }
         else {
