@@ -967,7 +967,7 @@ inline std::function<void()>
 			m_index :
 			m_index.siblingAtColumn(column);
 		Q_ASSERT(index.isValid());
-		emit model->dataChanged(index, index, QVector<int>() << Qt::DisplayRole);
+		emit model->dataChanged(index, index, model->roleNames().keys().toVector());
 	};
 }
 
