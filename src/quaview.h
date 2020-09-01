@@ -6,6 +6,7 @@
 #include <QSortFilterProxyModel>
 #include <QClipboard>
 #include <QMimeData>
+#include <QKeyEvent>
 #include <QUaModel>
 
 // SFINAE on members

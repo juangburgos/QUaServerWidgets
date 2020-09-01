@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <type_traits>
+#include <functional>
 
 // NOTE : specialize these static methods for specialized implementation for type T
 struct QUaModelItemTraits

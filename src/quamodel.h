@@ -6,6 +6,8 @@
 #include <QSortFilterProxyModel>
 #include <QUaModelItemTraits>
 
+#include <functional>
+
 // NOTE : neede to emit Qt events from templated classes because
 // templated classes cannot inherit or be QObjects
 class QUaModelBaseEventer : public QObject
@@ -210,7 +212,7 @@ protected:
     public:
         explicit QUaNodeWrapper(
             N node, 
-            QUaModel<N, I>::QUaNodeWrapper* parent = nullptr,
+            /*QUaModel<N, I>::*/QUaNodeWrapper* parent = nullptr,
             const bool &recursive = true);
 
         ~QUaNodeWrapper();
@@ -225,23 +227,23 @@ protected:
 
 		void * userData() const;
 		void   setUserData(const void* data);
-		QUaModel<N, I>::QUaNodeWrapper* findChildByData(const void* childData) const;
+		/*QUaModel<N, I>::*/QUaNodeWrapper* findChildByData(const void* childData) const;
 
         QModelIndex index() const;
         void setIndex(const QModelIndex &index);
 
-        QUaModel<N, I>::QUaNodeWrapper* parent() const;
+        /*QUaModel<N, I>::*/QUaNodeWrapper* parent() const;
 
 		template<typename X = N>
-		typename std::enable_if<std::is_pointer<X>::value, QUaModel<N, I>::QUaNodeWrapper*>::type
+		typename std::enable_if<std::is_pointer<X>::value, /*QUaModel<N, I>::*/QUaNodeWrapper*>::type
         childByNode(N node) const;
 
 		template<typename X = N>
-		typename std::enable_if<!std::is_pointer<X>::value, QUaModel<N, I>::QUaNodeWrapper*>::type
+		typename std::enable_if<!std::is_pointer<X>::value, /*QUaModel<N, I>::*/QUaNodeWrapper*>::type
 		childByNode(N* node) const;
 
         // NOTE : return by reference
-        QList<QUaModel<N, I>::QUaNodeWrapper*> & children();
+        QList</*QUaModel<N, I>::*/QUaNodeWrapper*> & children();
         QList<QMetaObject::Connection> & connections();
 
         std::function<void()> getChangeCallbackForColumn(const int& column, QAbstractItemModel* model);
@@ -279,9 +281,17 @@ protected:
 
 	void removeWrapper(typename QUaModel<N, I>::QUaNodeWrapper* wrapper);
 
+#if QT_VERSION < 0x051100
+	bool checkIndex(
+		const QModelIndex& index
+	) const;
+#endif
+
 	bool checkIndexRecursive(
 		const QModelIndex& index,
+#if QT_VERSION >= 0x051100
 		const QAbstractItemModel::CheckIndexOptions &options = CheckIndexOption::NoOption,
+#endif
 		const bool& isRoot = false
 	) const;
 
@@ -641,15 +651,34 @@ inline void QUaModel<N, I>::removeWrapper(typename QUaModel<N, I>::QUaNodeWrappe
 	Q_UNUSED(indexOk);
 }
 
+//	// NOTE : QAbstractItemModel::checkIndex only available for QT_VERSION >= 0x051100
+//	// https://doc.qt.io/qt-5/qabstractitemmodel.html#checkIndex
+#if QT_VERSION < 0x051100
+template<typename N, int I>
+bool QUaModel<N, I>::checkIndex(
+	const QModelIndex& index
+) const
+{
+	return !index.isValid() || (
+		index.isValid() && index.model() == this && index.row() >= 0 && index.column() >= 0 /* dont know how to check parent row or col count*/
+		);
+}
+#endif
+
 template<typename N, int I>
 inline bool QUaModel<N, I>::checkIndexRecursive(
 	const QModelIndex& index,
+#if QT_VERSION >= 0x051100
 	const QAbstractItemModel::CheckIndexOptions& options/* = CheckIndexOption::NoOption*/,
+#endif
 	const bool& isRoot/* = false*/) const
 {
+
 	bool indexOk = isRoot || this->checkIndex(
 		index,
+#if QT_VERSION >= 0x051100
 		QAbstractItemModel::CheckIndexOption::IndexIsValid
+#endif
 	);
 	Q_ASSERT(indexOk);
 	auto wrapper = isRoot ? m_root :
@@ -659,7 +688,9 @@ inline bool QUaModel<N, I>::checkIndexRecursive(
 	{
 		indexOk = indexOk && this->checkIndexRecursive(
 			this->index(row, 0, index),
+#if QT_VERSION >= 0x051100
 			options
+#endif
 		);
 		Q_ASSERT(indexOk);
 	}
@@ -679,7 +710,7 @@ inline void QUaModel<N, I>::handleNodeAddedRecursive(QUaNodeWrapper* wrapper)
 template<class N, int I>
 inline QUaModel<N, I>::QUaNodeWrapper::QUaNodeWrapper(
 	N node, 
-	QUaModel<N, I>::QUaNodeWrapper* parent/* = nullptr*/,
+	/*QUaModel<N, I>::*/QUaNodeWrapper* parent/* = nullptr*/,
 	const bool& recursive/* = true*/) :
 	m_node(node),
 	m_parent(parent),
@@ -727,7 +758,14 @@ inline
 typename std::enable_if<std::is_pointer<X>::value, X>::type
 QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 {
-	if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+	if (
+		!this->checkIndex(
+			index
+#if QT_VERSION >= 0x051100
+			, CheckIndexOption::IndexIsValid
+#endif
+		)
+	)
 	{
 		return m_root->node();
 	}
@@ -742,7 +780,14 @@ inline
 typename std::enable_if<!std::is_pointer<X>::value, X*>::type
 QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 {
-	if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+	if (
+		!this->checkIndex(
+			index
+#if QT_VERSION >= 0x051100
+			, CheckIndexOption::IndexIsValid
+#endif
+		)
+	)
 	{
 		return m_root->node();
 	}
