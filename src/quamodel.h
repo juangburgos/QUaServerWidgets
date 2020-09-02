@@ -17,7 +17,7 @@ public:
 	inline explicit QUaModelBaseEventer(QObject* parent = nullptr)
 		: QObject(parent)
 	{
-		processing = false;
+		m_processing = false;
 		QObject::connect(
 			this,
 			&QUaModelBaseEventer::sendEvent,
@@ -30,11 +30,11 @@ public:
 	inline void execLater(M1 func)
 	{
 		m_funcs.enqueue(func);
-		if (processing)
+		if (m_processing)
 		{
 			return;
 		}
-		processing = true;
+		m_processing = true;
 		emit this->sendEvent(QPrivateSignal());
 	};
 signals:
@@ -43,17 +43,17 @@ signals:
 private slots:
 	inline void on_sendEvent() 
 	{
-		Q_ASSERT(processing);
+		Q_ASSERT(m_processing);
 		if (m_funcs.isEmpty())
 		{
-			processing = false;
+			m_processing = false;
 			return;
 		}
 		m_funcs.dequeue()();
 		emit this->sendEvent(QPrivateSignal());
 	};
 private:
-	bool processing;
+	bool m_processing;
 	QQueue<std::function<void(void)>> m_funcs;
 };
 
@@ -113,6 +113,12 @@ class QUaModel : public QAbstractItemModel, public QUaModelBase<N, I>
     friend class QUaTreeModel<N, I>;
 public:
     explicit QUaModel(QObject *parent = nullptr);
+	QUaModel(const QUaModel &other) 
+	{
+		m_root = other.m_root;
+		m_columnCount = other.m_columnCount;
+		// NOTE : cannot copy eventer because is a QObject and they are non-copiable
+	};
     ~QUaModel();
 
 	// NOTE : to handle signals
@@ -281,7 +287,7 @@ protected:
 
 	void removeWrapper(typename QUaModel<N, I>::QUaNodeWrapper* wrapper);
 
-#if QT_VERSION < 0x051100
+#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
 	bool checkIndex(
 		const QModelIndex& index
 	) const;
@@ -289,7 +295,7 @@ protected:
 
 	bool checkIndexRecursive(
 		const QModelIndex& index,
-#if QT_VERSION >= 0x051100
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 		const QAbstractItemModel::CheckIndexOptions &options = CheckIndexOption::NoOption,
 #endif
 		const bool& isRoot = false
@@ -632,7 +638,11 @@ inline void QUaModel<N, I>::removeWrapper(typename QUaModel<N, I>::QUaNodeWrappe
 		}
 		row = wrapper->index().row();
 	}
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 	Q_ASSERT(this->checkIndex(this->index(row, 0, index), QAbstractItemModel::CheckIndexOption::IndexIsValid));
+#else
+	Q_ASSERT(this->checkIndex(this->index(row, 0, index)));
+#endif
 	Q_ASSERT(wrapper == parent->children().at(row));
 	// notify views that row will be removed
 	this->beginRemoveRows(index, row, row);
@@ -644,7 +654,9 @@ inline void QUaModel<N, I>::removeWrapper(typename QUaModel<N, I>::QUaNodeWrappe
 	// so we can delete multiple rows in a loop inmediatly (without having to queue them)
 	bool indexOk = this->checkIndexRecursive(
 		index,
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 		QAbstractItemModel::CheckIndexOption::IndexIsValid,
+#endif
 		parent == m_root
 	);
 	Q_ASSERT(indexOk);
@@ -653,7 +665,7 @@ inline void QUaModel<N, I>::removeWrapper(typename QUaModel<N, I>::QUaNodeWrappe
 
 //	// NOTE : QAbstractItemModel::checkIndex only available for QT_VERSION >= 0x051100
 //	// https://doc.qt.io/qt-5/qabstractitemmodel.html#checkIndex
-#if QT_VERSION < 0x051100
+#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
 template<typename N, int I>
 bool QUaModel<N, I>::checkIndex(
 	const QModelIndex& index
@@ -668,16 +680,16 @@ bool QUaModel<N, I>::checkIndex(
 template<typename N, int I>
 inline bool QUaModel<N, I>::checkIndexRecursive(
 	const QModelIndex& index,
-#if QT_VERSION >= 0x051100
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 	const QAbstractItemModel::CheckIndexOptions& options/* = CheckIndexOption::NoOption*/,
 #endif
 	const bool& isRoot/* = false*/) const
 {
 
 	bool indexOk = isRoot || this->checkIndex(
-		index,
-#if QT_VERSION >= 0x051100
-		QAbstractItemModel::CheckIndexOption::IndexIsValid
+		index
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
+		, QAbstractItemModel::CheckIndexOption::IndexIsValid
 #endif
 	);
 	Q_ASSERT(indexOk);
@@ -687,9 +699,9 @@ inline bool QUaModel<N, I>::checkIndexRecursive(
 	for (int row = 0; row < wrapper->children().count(); row++)
 	{
 		indexOk = indexOk && this->checkIndexRecursive(
-			this->index(row, 0, index),
-#if QT_VERSION >= 0x051100
-			options
+			this->index(row, 0, index)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
+			, options
 #endif
 		);
 		Q_ASSERT(indexOk);
@@ -761,7 +773,7 @@ QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 	if (
 		!this->checkIndex(
 			index
-#if QT_VERSION >= 0x051100
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 			, CheckIndexOption::IndexIsValid
 #endif
 		)
@@ -783,7 +795,7 @@ QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 	if (
 		!this->checkIndex(
 			index
-#if QT_VERSION >= 0x051100
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 			, CheckIndexOption::IndexIsValid
 #endif
 		)
@@ -1010,7 +1022,7 @@ inline std::function<void()>
 	{
 		QModelIndex index = (column == m_index.column()) ?
 			m_index :
-			m_index.siblingAtColumn(column);
+			m_index.sibling(m_index.row(), column);
 		Q_ASSERT(index.isValid());
 		emit model->dataChanged(index, index, model->roleNames().keys().toVector());
 	};
@@ -1022,6 +1034,11 @@ class QUaLambdaFilterProxy : public QSortFilterProxyModel
 
 public:
 	inline QUaLambdaFilterProxy(QObject* parent = 0) : QSortFilterProxyModel(parent) {};
+	inline QUaLambdaFilterProxy(const QUaLambdaFilterProxy &other) 		
+	{
+		m_filterAcceptsRow = other.m_filterAcceptsRow;
+		m_lessThan = other.m_lessThan;
+	};
 
 	inline void forceReFilter()
 	{

@@ -66,7 +66,7 @@ inline void QUaTableModel<N, I>::addNode(N node)
 	auto conn = QUaModelItemTraits::DestroyCallback<N, I>(wrapper->node(),
         [this, wrapper]() {
 			Q_CHECK_PTR(wrapper);
-			auto root = QUaModel<N, I>::m_root;
+			auto root = /*QUaModel<N, I>::*/m_root;
             Q_ASSERT(root);
 			Q_UNUSED(root);
 			// remove
@@ -84,8 +84,10 @@ inline void QUaTableModel<N, I>::addNode(N node)
 	// because sometimes they are not created until a view requires them
 	// and if a child is added and parent's index is not ready then crash
     bool indexOk = this->checkIndexRecursive(
-		this->index(row, 0, index), 
-		QAbstractItemModel::CheckIndexOption::IndexIsValid
+		this->index(row, 0, index)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
+		, QAbstractItemModel::CheckIndexOption::IndexIsValid
+#endif
 	);
 	Q_ASSERT(indexOk);
 	Q_UNUSED(indexOk);
