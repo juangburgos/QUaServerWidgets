@@ -10,6 +10,9 @@ public:
     explicit QUaTableModel(QObject *parent = nullptr);
     ~QUaTableModel();
 
+	// NOTE : not copyable because might own the data, pass pointers intead
+	QUaTableModel(const QUaTableModel&) = delete;
+
     void addNode(N node);
 
     void addNodes(const QList<N> &nodes);

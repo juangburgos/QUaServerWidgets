@@ -113,12 +113,8 @@ class QUaModel : public QAbstractItemModel, public QUaModelBase<N, I>
     friend class QUaTreeModel<N, I>;
 public:
     explicit QUaModel(QObject *parent = nullptr);
-	QUaModel(const QUaModel &other) 
-	{
-		m_root = other.m_root;
-		m_columnCount = other.m_columnCount;
-		// NOTE : cannot copy eventer because is a QObject and they are non-copiable
-	};
+	// NOTE : not copyable because might own the data, pass pointers intead
+	QUaModel(const QUaModel&) = delete;
     ~QUaModel();
 
 	// NOTE : to handle signals
@@ -782,7 +778,10 @@ QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 		return m_root->node();
 	}
 	auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
-	Q_CHECK_PTR(wrapper);
+	if (!wrapper)
+	{
+		return nullptr;
+	}
 	return wrapper->node();
 }
 
@@ -804,7 +803,10 @@ QUaModel<N, I>::nodeFromIndex(const QModelIndex& index) const
 		return m_root->node();
 	}
 	auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
-	Q_CHECK_PTR(wrapper);
+	if (!wrapper)
+	{
+		return nullptr;
+	}
 	return wrapper->node();
 }
 
