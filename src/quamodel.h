@@ -336,12 +336,12 @@ template<class N, int I>
 inline void QUaModel<N, I>::removeColumnDataSource(const int& column)
 {
 	Q_ASSERT(column >= 0);
-	if (column < 0 || column >= m_columnCount || !m_mapDataSourceFuncs.contains(column))
+    if (column < 0 || column >= m_columnCount || !QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(column))
 	{
 		return;
 	}
-	m_mapDataSourceFuncs.remove(column);
-	while (!m_mapDataSourceFuncs.contains(m_columnCount - 1) && m_columnCount > 1)
+    QUaModelBase<N, I>::m_mapDataSourceFuncs.remove(column);
+    while (!QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(m_columnCount - 1) && m_columnCount > 1)
 	{
 		m_columnCount--;
 	}
@@ -374,18 +374,18 @@ inline QVariant QUaModel<N, I>::headerData(int section, Qt::Orientation orientat
 		return QVariant();
 	}
 	// default implementation if no ColumnDataSource has been defined
-	if (m_mapDataSourceFuncs.isEmpty())
+    if (QUaModelBase<N, I>::m_mapDataSourceFuncs.isEmpty())
 	{
 		Q_ASSERT(m_columnCount == 1);
 		return tr("");
 	}
 	// empty if no ColumnDataSource defined for this column
-	if (!m_mapDataSourceFuncs.contains(section))
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(section))
 	{
 		return QVariant();
 	}
 	// use user-defined ColumnDataSource
-	return m_mapDataSourceFuncs[section].m_strHeader;
+    return QUaModelBase<N, I>::m_mapDataSourceFuncs[section].m_strHeader;
 }
 
 template<class N, int I>
@@ -508,19 +508,19 @@ inline QVariant QUaModel<N, I>::data(const QModelIndex& index, int role) const
 		return QVariant();
 	}
 	// default implementation if no ColumnDataSource has been defined
-	if (m_mapDataSourceFuncs.isEmpty())
+    if (QUaModelBase<N, I>::m_mapDataSourceFuncs.isEmpty())
 	{
 		Q_ASSERT(m_columnCount == 1);
 		return tr("");
 	}
 	// empty if no ColumnDataSource defined for this column
-	if (!m_mapDataSourceFuncs.contains(index.column()) ||
-		!m_mapDataSourceFuncs[index.column()].m_dataCallback)
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(index.column()) ||
+        !QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_dataCallback)
 	{
 		return QVariant();
 	}
 	// use user-defined ColumnDataSource
-	return m_mapDataSourceFuncs[index.column()].m_dataCallback(
+    return QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_dataCallback(
 		wrapper->node(),
 		static_cast<Qt::ItemDataRole>(role)
 	);
@@ -546,8 +546,8 @@ inline Qt::ItemFlags QUaModel<N, I>::flags(const QModelIndex& index) const
 	}
 	Qt::ItemFlags flags = QAbstractItemModel::flags(index);
 	// test column defined and editable callback defined
-	if (!m_mapDataSourceFuncs.contains(index.column()) ||
-		!m_mapDataSourceFuncs[index.column()].m_editableCallback)
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(index.column()) ||
+        !QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_editableCallback)
 	{
 		return flags;
 	}
@@ -558,7 +558,7 @@ inline Qt::ItemFlags QUaModel<N, I>::flags(const QModelIndex& index) const
 		return flags;
 	}
 	// test callback returns true
-	if (!m_mapDataSourceFuncs[index.column()].m_editableCallback(wrapper->node()))
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_editableCallback(wrapper->node()))
 	{
 		return flags;
 	}
@@ -575,12 +575,12 @@ inline void QUaModel<N, I>::bindChangeCallbackForColumn(
 {
 	Q_CHECK_PTR(wrapper);
 	if (QUaModelItemTraits::IsValid<N, I>(wrapper->node()) &&
-		m_mapDataSourceFuncs[column].m_changeCallback)
+        QUaModelBase<N, I>::m_mapDataSourceFuncs[column].m_changeCallback)
 	{
 		// pass in callback that user needs to call when a value is udpated
 		// store connection in wrapper so can be disconnected when wrapper deleted
 		wrapper->connections() <<
-			m_mapDataSourceFuncs[column].m_changeCallback(
+            QUaModelBase<N, I>::m_mapDataSourceFuncs[column].m_changeCallback(
 				wrapper->node(),
 				wrapper->getChangeCallbackForColumn(column, this)
 			);
@@ -603,9 +603,9 @@ inline void QUaModel<N, I>::bindChangeCallbackForAllColumns(
 	const bool& recursive
 )
 {
-	if (!m_mapDataSourceFuncs.isEmpty())
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs.isEmpty())
 	{
-		for (auto column : m_mapDataSourceFuncs.keys())
+        for (auto column : QUaModelBase<N, I>::m_mapDataSourceFuncs.keys())
 		{
 			this->bindChangeCallbackForColumn(column, wrapper, recursive);
 		}
@@ -859,7 +859,7 @@ QUaModel<N, I>::setColumnDataSource(
 	{
 		return;
 	}
-	m_mapDataSourceFuncs.insert(
+    QUaModelBase<N, I>::m_mapDataSourceFuncs.insert(
 		column,
 		{
 			strHeader,
@@ -869,7 +869,7 @@ QUaModel<N, I>::setColumnDataSource(
 		}
 	);
 	// call bind function recusivelly for each existing instance
-	if (m_mapDataSourceFuncs[column].m_changeCallback)
+    if (QUaModelBase<N, I>::m_mapDataSourceFuncs[column].m_changeCallback)
 	{
 		this->bindChangeCallbackForColumn(column, m_root);
 	}
@@ -894,7 +894,7 @@ QUaModel<N, I>::setColumnDataSource(
 	{
 		return;
 	}
-	m_mapDataSourceFuncs.insert(
+    QUaModelBase<N, I>::m_mapDataSourceFuncs.insert(
 		column,
 		{
 			strHeader,
@@ -904,7 +904,7 @@ QUaModel<N, I>::setColumnDataSource(
 		}
 	);
 	// call bind function recusivelly for each existing instance
-	if (m_mapDataSourceFuncs[column].m_changeCallback)
+    if (QUaModelBase<N, I>::m_mapDataSourceFuncs[column].m_changeCallback)
 	{
 		this->bindChangeCallbackForColumn(column, m_root);
 	}
@@ -946,9 +946,9 @@ template<typename N, int I>
 inline typename QUaModel<N, I>::QUaNodeWrapper*
 QUaModel<N, I>::QUaNodeWrapper::findChildByData(const void* childData) const
 {
-	QUaModel<N>::QUaNodeWrapper* child = nullptr;
+    QUaModel<N, I>::QUaNodeWrapper* child = nullptr;
 	auto res = std::find_if(m_children.begin(), m_children.end(),
-	[childData](QUaModel<N>::QUaNodeWrapper* child) {
+    [childData](QUaModel<N, I>::QUaNodeWrapper* child) {
 			return child->userData() == childData;
 	});
 	return res == m_children.end() ? nullptr : *res;

@@ -69,7 +69,11 @@ inline void QUaTableModel<N, I>::addNode(N node)
 	auto conn = QUaModelItemTraits::DestroyCallback<N, I>(wrapper->node(),
         [this, wrapper]() {
 			Q_CHECK_PTR(wrapper);
-			auto root = /*QUaModel<N, I>::*/m_root;
+            auto root =
+        #ifdef Q_OS_LINUX
+                    QUaModel<N, I>::
+        #endif
+                    m_root;
             Q_ASSERT(root);
 			Q_UNUSED(root);
 			// remove

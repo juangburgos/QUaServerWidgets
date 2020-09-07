@@ -326,12 +326,24 @@ protected:
 template<typename T, typename N, int I>
 inline QUaView<T, N, I>::QUaView()
 {
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_model = nullptr;
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_proxy = nullptr;
 	m_thiz  = static_cast<T*>(this);
 	m_thiz->setItemDelegate(new QUaView<T, N, I>::QUaItemDelegate(m_thiz));
 	m_thiz->setAlternatingRowColors(true);
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_funcHandleCopy  = nullptr;
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_funcHandlePaste = nullptr;
 }
 
@@ -342,14 +354,29 @@ inline void QUaView<T, N, I>::setModel(QAbstractItemModel* model)
 	auto nodeModel = dynamic_cast<QUaModel<N, I>*>(model);
 	if (!nodeModel)
 	{
+        #ifdef Q_OS_LINUX
+            QUaViewBase<N, I>::
+        #endif
 		m_proxy = dynamic_cast<QSortFilterProxyModel*>(model);
-		if (m_proxy)
+        if (
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_proxy
+            )
 		{
-			nodeModel = dynamic_cast<QUaModel<N, I>*>(m_proxy->sourceModel());
+            nodeModel = dynamic_cast<QUaModel<N, I>*>(
+                        #ifdef Q_OS_LINUX
+                            QUaViewBase<N, I>::
+                        #endif
+                        m_proxy->sourceModel());
 		}
 	}
 	else
 	{
+        #ifdef Q_OS_LINUX
+            QUaViewBase<N, I>::
+        #endif
 		m_proxy = nullptr;
 	}
 	Q_ASSERT_X(nodeModel, "setModel", "QUaView only supports QUaModel models");
@@ -357,6 +384,9 @@ inline void QUaView<T, N, I>::setModel(QAbstractItemModel* model)
 	{
 		return;
 	}
+    #ifdef Q_OS_LINUX
+        QUaViewBase<N, I>::
+    #endif
 	m_model = nodeModel;
 	m_thiz->B::setModel(model);
 }
@@ -369,7 +399,16 @@ inline QModelIndexList QUaView<T, N, I>::selectedIndexesOrigin() const
 	QModelIndexList res;
 	for (auto index : indexes)
 	{
-		index = m_proxy ? m_proxy->mapToSource(index) : index;
+        index =
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_proxy
+                ?
+                    #ifdef Q_OS_LINUX
+                        QUaViewBase<N, I>::
+                    #endif
+                    m_proxy->mapToSource(index) : index;
 		res << index;
 	}
 	return res;
@@ -378,18 +417,27 @@ inline QModelIndexList QUaView<T, N, I>::selectedIndexesOrigin() const
 template<typename T, typename N, int I>
 inline void QUaView<T, N, I>::clearDeleteCallback()
 {
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_funcHandleDelete = nullptr;
 }
 
 template<typename T, typename N, int I>
 inline void QUaView<T, N, I>::clearCopyCallback()
 {
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_funcHandleCopy = nullptr;
 }
 
 template<typename T, typename N, int I>
 inline void QUaView<T, N, I>::clearPasteCallback()
 {
+#ifdef Q_OS_LINUX
+    QUaViewBase<N, I>::
+#endif
 	m_funcHandlePaste = nullptr;
 }
 
@@ -427,7 +475,11 @@ inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 	// check if delete
 	if (event->key() == Qt::Key_Delete)
 	{
-		if (!m_funcHandleDelete)
+        if (!
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_funcHandleDelete)
 		{
 			// call base class method
 			m_thiz->B::keyPressEvent(event);
@@ -435,13 +487,20 @@ inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 		}
 		// call delete callback and exit
 		auto nodes = this->nodesFromIndexes(indexes);
+        #ifdef Q_OS_LINUX
+            QUaViewBase<N, I>::
+        #endif
 		m_funcHandleDelete(nodes);
 		return;
 	}
 	// check if copy
 	if (event->matches(QKeySequence::Copy))
 	{
-		if (!m_funcHandleCopy)
+        if (!
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_funcHandleCopy)
 		{
 			// call base class method
 			m_thiz->B::keyPressEvent(event);
@@ -449,7 +508,11 @@ inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 		}
 		// call copy callback and exit
 		auto nodes = this->nodesFromIndexes(indexes);
-		auto mime = m_funcHandleCopy(nodes);
+        auto mime =
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_funcHandleCopy(nodes);
 		if (mime)
 		{
 			QApplication::clipboard()->setMimeData(mime);
@@ -459,7 +522,11 @@ inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 	// check if paste
 	if (event->matches(QKeySequence::Paste))
 	{
-		if (!m_funcHandlePaste)
+        if (!
+                #ifdef Q_OS_LINUX
+                    QUaViewBase<N, I>::
+                #endif
+                m_funcHandlePaste)
 		{
 			// call base class method
 			m_thiz->B::keyPressEvent(event);
@@ -467,6 +534,9 @@ inline void QUaView<T, N, I>::keyPressEvent(QKeyEvent* event)
 		}
 		// call paste callback and exit
 		auto nodes = this->nodesFromIndexes(indexes);
+        #ifdef Q_OS_LINUX
+            QUaViewBase<N, I>::
+        #endif
 		m_funcHandlePaste(
 			nodes,
 			QApplication::clipboard()->mimeData()
