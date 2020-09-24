@@ -37,7 +37,7 @@ inline QUaTreeModel<N, I>::~QUaTreeModel()
 template<class N, int I>
 inline N QUaTreeModel<N, I>::rootNode() const
 {
-    return QUaModel<N>::m_root ? QUaModel<N>::m_root->node() : nullptr;
+    return QUaModel<N, I>::m_root ? QUaModel<N, I>::m_root->node() : nullptr;
 }
 
 template<class N, int I>
