@@ -14,6 +14,8 @@ QUaServerWidget::QUaServerWidget(QWidget *parent) :
     ui(new Ui::QUaServerWidget)
 {
     ui->setupUi(this);
+	m_readOnly = false;
+	m_allowStart = true;
 #ifndef UA_ENABLE_ENCRYPTION
 	ui->labelPrivateKey->setVisible(false);
 	ui->framePrivateKey->setVisible(false);
@@ -279,14 +281,24 @@ void QUaServerWidget::setPrivateKeyFile(const QString &strFileName)
 }
 #endif
 
+bool QUaServerWidget::readOnly() const
+{
+	return m_readOnly;
+}
+
 void QUaServerWidget::setReadOnly(const bool& readOnly)
 {
+	if (readOnly == m_readOnly)
+	{
+		return;
+	}
+	m_readOnly = readOnly;
 	ui->spinBoxPort               ->setReadOnly(readOnly);
-	ui->pushButtonLoadCertificate ->setEnabled(!readOnly);
-	ui->pushButtonClearCertificate->setEnabled(!readOnly);
+	ui->pushButtonLoadCertificate ->setVisible(!readOnly);
+	ui->pushButtonClearCertificate->setVisible(!readOnly);
 #ifdef UA_ENABLE_ENCRYPTION
-	ui->pushButtonLoadPrivateKey  ->setEnabled(!readOnly);
-	ui->pushButtonClearPrivateKey ->setEnabled(!readOnly);
+	ui->pushButtonLoadPrivateKey  ->setVisible(!readOnly);
+	ui->pushButtonClearPrivateKey ->setVisible(!readOnly);
 #endif
 	ui->spinBoxMaxSecureChannels->setReadOnly(readOnly);
 	ui->spinBoxMaxSessions      ->setReadOnly(readOnly);
@@ -297,8 +309,27 @@ void QUaServerWidget::setReadOnly(const bool& readOnly)
 	ui->lineEditManufacturerName->setReadOnly(readOnly);
 	ui->lineEditSoftwareVersion ->setReadOnly(readOnly);
 	ui->lineEditBuildNumber     ->setReadOnly(readOnly);
-	ui->pushButtonCancel        ->setEnabled(!readOnly);
-	ui->pushButtonApply         ->setEnabled(!readOnly);
+	ui->pushButtonCancel        ->setVisible(!readOnly);
+	ui->pushButtonApply         ->setVisible(!readOnly);
+	ui->line->setVisible(!readOnly);
+	ui->line_2->setVisible(!readOnly);
+	emit this->readOnlyChanged();
+}
+
+bool QUaServerWidget::allowStart() const
+{
+	return m_allowStart;
+}
+
+void QUaServerWidget::setAllowStart(const bool& allowStart)
+{
+	if (allowStart == m_allowStart)
+	{
+		return;
+	}
+	m_allowStart = allowStart;
+	ui->pushButtonStart->setVisible(m_allowStart);
+	emit this->allowStartChanged();
 }
 
 QByteArray QUaServerWidget::readFileData(const QString& strFileName)
