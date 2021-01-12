@@ -83,4 +83,5 @@ void QUaBaseObjectExt::addPropertyChild(QString strName)
 {
     auto prop = this->addProperty(strName);
     prop->setWriteAccess(true);
+    prop->setDataType(QMetaType::Double);
 }

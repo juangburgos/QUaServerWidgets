@@ -394,7 +394,9 @@ QUaModelItemTraits::NewChildCallback<QUaLog>(
     const std::function<void(QUaLog&)> &callback)
 {
     // valid logs do not have children
-    if (QUaModelItemTraits::IsValid<QUaLog>(log))
+    //if (QUaModelItemTraits::IsValid<QUaLog>(log))
+    // TODO : VS2017 does not calls specialized template above from QUaLogModelItemTraits for some reason
+    if (!log->message.isNull()) 
     {
         return QMetaObject::Connection();
     }
@@ -405,8 +407,6 @@ QUaModelItemTraits::NewChildCallback<QUaLog>(
         callback(nlog);
     });
 }
-
-
 
 template<>
 inline QMetaObject::Connection
@@ -520,6 +520,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         if (!ok) { return; }
         auto basevar = obj->addBaseDataVariable(name);
         basevar->setWriteAccess(true);
+        basevar->setDataType(QMetaType::Double);
 	});
     menu.addAction(tr("Add Property"), this,
 	[this, obj]() {
@@ -528,6 +529,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
         if (!ok) { return; }
         auto prop = obj->addProperty(name);
         prop->setWriteAccess(true);
+        prop->setDataType(QMetaType::Double);
 	});
     menu.addSeparator();
     QString strType(obj->metaObject()->className());
@@ -601,6 +603,7 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         if (!ok) { return; }
         auto basevar = datavar->addBaseDataVariable(name);
         basevar->setWriteAccess(true);
+        basevar->setDataType(QMetaType::Double);
 	});
     menu.addAction(tr("Add Property"), this,
 	[this, datavar]() {
@@ -609,6 +612,7 @@ void Dialog::setupQUaBaseDataVariableMenu(QMenu& menu, QUaBaseDataVariable* data
         if (!ok) { return; }
         auto prop = datavar->addProperty(name);
         prop->setWriteAccess(true);
+        prop->setDataType(QMetaType::Double);
 	});
     menu.addSeparator();
     menu.addAction(tr("Delete \"%1\"").arg(datavar->displayName()), this,
