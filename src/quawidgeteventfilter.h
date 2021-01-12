@@ -40,7 +40,8 @@ protected:
         if (m_handledTypes.contains(event->type()))
         {
             emit this->handleCallback(event->type(), event, QPrivateSignal());
-            return true;
+            // NOTE : return false means do NOT filter the event (forward it to monitored object)
+            return false;
         }
         else {
             // standard event processing
