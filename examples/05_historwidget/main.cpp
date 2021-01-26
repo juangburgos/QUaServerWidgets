@@ -13,13 +13,13 @@ int main(int argc, char* argv[])
 
 	QUaServer server;
 	QObject::connect(&server, &QUaServer::logMessage,
-    [](const QUaLog &log) {
-        qDebug() 
+	[](const QUaLog &log) {
+		qDebug() 
 			<< "["   << log.timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz")
 			<< "]["  << log.level
 			<< "]["  << log.category
 			<< "] :" << log.message;
-    });
+	});
 
 	QUaFolderObject* objsFolder = server.objectsFolder();
 
@@ -38,12 +38,13 @@ int main(int argc, char* argv[])
 		varInt->setHistorizing(true);
 		varInt->setReadHistoryAccess(true);
 		varInt->setValue(0);
+		varInt->setMaxHistoryDataResponseSize(2000);
 		// store
 		listVars << varInt;
 	}
 
 	// set random value on timeout
-	int msecs = 5;
+	int msecs = 50;
 	QTimer timerVars;
 	QObject::connect(&timerVars, &QTimer::timeout, &server, 
 	[&listVars, &timerVars, msecs]() {
