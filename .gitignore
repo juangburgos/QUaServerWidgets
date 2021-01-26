@@ -610,3 +610,4 @@ compile_commands.json
 /src/wrapper/pch_open62541.h.c
 *.sqlite
 *.xml
+*.sqlite-journal
