@@ -611,3 +611,4 @@ compile_commands.json
 *.sqlite
 *.xml
 *.sqlite-journal
+*.7z
