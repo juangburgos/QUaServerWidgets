@@ -5,15 +5,15 @@
 #include <QUaServer>
 #include <QUaTableModel>
 #include <QSortFilterProxyModel>
-#include <QUaTableView>
+#include <QUaTreeView>
 
 #include <QUaLogModelItemTraits>
 
 typedef QUaTableModel<QUaLog> QUaLogModel;
 typedef QUaTableModel<const QUaSession*> QUaSessionModel;
 
-typedef QUaTableView<QUaLog> QUaLogTableView;
-typedef QUaTableView<const QUaSession*> QUaSessionTableView;
+typedef QUaTreeView<QUaLog> QUaLogTableView;
+typedef QUaTreeView<const QUaSession*> QUaSessionTableView;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
