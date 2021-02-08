@@ -28,12 +28,15 @@ public:
         };
     }
 
+    /*
+    // NOTE : gcc does not like
     template<>
     inline void
         installEventCallback(const QEvent::Type& handleType, const QUaWidgetEventFilterCallback& callback)
     {
         m_eventTypesCallbacks[handleType] << callback;
     }
+    */
 
     inline void clearEventCallbacks(const QEvent::Type& handleType)
     {
