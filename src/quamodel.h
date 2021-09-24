@@ -37,10 +37,10 @@ public:
 		m_processing = true;
 		emit this->sendEvent(QPrivateSignal());
 	};
-signals:
+Q_SIGNALS:
 	void nodeAdded(void* wrapper);
 	void sendEvent(QPrivateSignal);
-private slots:
+private Q_SLOTS:
 	inline void on_sendEvent() 
 	{
 		Q_ASSERT(m_processing);
@@ -50,7 +50,7 @@ private slots:
 			return;
 		}
 		m_funcs.dequeue()();
-		emit this->sendEvent(QPrivateSignal());
+		Q_EMIT this->sendEvent(QPrivateSignal());
 	};
 private:
 	bool m_processing;
@@ -532,7 +532,7 @@ inline bool QUaModel<N, I>::setData(const QModelIndex& index, const QVariant& va
 	bool ok = QUaModelItemTraits::SetData<N, I>(this->nodeFromIndex(index), index.column(), value);
 	if (ok)
 	{
-		emit this->dataChanged(index, index, QVector<int>() << role);
+		Q_EMIT this->dataChanged(index, index, QVector<int>() << role);
 	}
 	return ok;
 }
@@ -708,7 +708,7 @@ inline bool QUaModel<N, I>::checkIndexRecursive(
 template<typename N, int I>
 inline void QUaModel<N, I>::handleNodeAddedRecursive(QUaNodeWrapper* wrapper)
 {
-	emit m_eventer.nodeAdded(wrapper);
+	Q_EMIT m_eventer.nodeAdded(wrapper);
 	for (auto child : wrapper->children())
 	{
 		this->handleNodeAddedRecursive(child);
@@ -1026,7 +1026,7 @@ inline std::function<void()>
 			m_index :
 			m_index.sibling(m_index.row(), column);
 		Q_ASSERT(index.isValid());
-		emit model->dataChanged(index, index, model->roleNames().keys().toVector());
+		Q_EMIT model->dataChanged(index, index, model->roleNames().keys().toVector());
 	};
 }
 

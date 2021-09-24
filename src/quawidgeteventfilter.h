@@ -43,7 +43,7 @@ public:
         m_eventTypesCallbacks.remove(handleType);
     }
 
-signals:
+Q_SIGNALS:
     void handleCallback(const QEvent::Type& type, QEvent* event, QPrivateSignal);
 
 protected:
