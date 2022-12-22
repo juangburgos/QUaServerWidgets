@@ -1,8 +1,6 @@
 #include "quaserverwidget.h"
 #include "ui_quaserverwidget.h"
 
-#include <QUaServer>
-
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QDir>

@@ -3,7 +3,7 @@
 
 #include <QWidget>
 
-class QUaServer;
+#include <QUaServer>
 
 namespace Ui {
 class QUaServerWidget;
