@@ -1,4 +1,5 @@
 #include "quabaseobjectext.h"
+#include "quaserver.h"
 
 #include <QUaFolderObject>
 #include <QUaBaseDataVariable>

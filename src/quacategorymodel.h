@@ -65,9 +65,9 @@ private:
         QString
     > m_hashCategories;
 
-    QUaModel<N, I>::QUaNodeWrapper* addCategoryInternal(const QString& strCategory);
+    typename QUaModel<N, I>::QUaNodeWrapper* addCategoryInternal(const QString& strCategory);
 
-    QUaModel<N, I>::QUaNodeWrapper* getCategoryInternal(const QString& strCategory);
+    typename QUaModel<N, I>::QUaNodeWrapper* getCategoryInternal(const QString& strCategory);
 };
 
 template<typename N, int I>
@@ -305,12 +305,12 @@ inline QStringList QUaCategoryModel<N, I>::indexesToCategories(
     for (auto index : indexes)
     {
         // ignore root
-        if (!this->checkIndex(index, CheckIndexOption::IndexIsValid))
+        if (!this->checkIndex(index, QAbstractItemModel::CheckIndexOption::IndexIsValid))
         {
             continue;
         }
         // ignore nodes
-        auto wrapper = static_cast<QUaNodeWrapper*>(index.internalPointer());
+        auto wrapper = static_cast<typename QUaCategoryModel<N, I>::QUaNodeWrapper*>(index.internalPointer());
         Q_CHECK_PTR(wrapper);
         if (QUaModelItemTraits::IsValid<N, I>(wrapper->node()))
         {
@@ -339,11 +339,11 @@ inline QVariant QUaCategoryModel<N, I>::data(
         return QVariant();
     }
     // get internal reference
-    auto wrapper = static_cast<QUaModel<N, I>::QUaNodeWrapper*>(index.internalPointer());
+    auto wrapper = static_cast<typename QUaModel<N, I>::QUaNodeWrapper*>(index.internalPointer());
     // NOTE : do not ignore invalid
     auto &categories = QUaModel<N, I>::m_root->children();
     auto res = std::find_if(categories.begin(), categories.end(),
-    [wrapper](QUaModel<N, I>::QUaNodeWrapper * category) {
+    [wrapper](typename QUaModel<N, I>::QUaNodeWrapper * category) {
         return wrapper == category;
     });
     auto category = (res == categories.end()) ? nullptr : *res;
@@ -358,19 +358,20 @@ inline QVariant QUaCategoryModel<N, I>::data(
         return QVariant();
     }
     // default implementation if no ColumnDataSource has been defined
-    if (m_mapDataSourceFuncs.isEmpty())
+    if (QUaModelBase<N, I>::m_mapDataSourceFuncs.isEmpty())
     {
-        Q_ASSERT(m_columnCount == 1);
-        return tr("");
+        using QUaModel = QUaModel<N, I>;
+        Q_ASSERT(QUaModel::m_columnCount == 1);
+        return QObject::tr("");
     }
     // empty if no ColumnDataSource defined for this column
-    if (!m_mapDataSourceFuncs.contains(index.column()) ||
-        !m_mapDataSourceFuncs[index.column()].m_dataCallback)
+    if (!QUaModelBase<N, I>::m_mapDataSourceFuncs.contains(index.column()) ||
+        !QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_dataCallback)
     {
         return QVariant();
     }
     // use user-defined ColumnDataSource
-    return m_mapDataSourceFuncs[index.column()].m_dataCallback(
+    return QUaModelBase<N, I>::m_mapDataSourceFuncs[index.column()].m_dataCallback(
         wrapper->node(),
         static_cast<Qt::ItemDataRole>(role)
     );

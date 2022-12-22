@@ -135,7 +135,7 @@ void Dialog::setupTableTypes()
             qDebug() << "copy" << node->nodeId();
             mime->setText(
                 mime->text().isEmpty() ?
-                node->nodeId() :
+                (QString)node->nodeId() :
                 mime->text() + ", " + node->nodeId()
             );
         }
@@ -312,7 +312,7 @@ QVariant Dialog::dataCallback_0(QUaNode* node)
 
 QVariant Dialog::dataCallback_1(QUaNode* node)
 {
-    return node->nodeId();
+    return (QString)node->nodeId();
 }
 
 QVariant Dialog::dataCallback_2(QUaNode* node)

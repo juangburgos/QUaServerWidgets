@@ -47,7 +47,7 @@ inline void QUaTableView<N, I>::setModel(QAbstractItemModel* model)
 template<typename N, int I>
 inline QModelIndexList QUaTableView<N, I>::selectedIndexesOrigin() const
 {
-	return QUaView<QUaTableView, N>
+    return QUaView<QUaTableView, N, I>
 		::template selectedIndexesOrigin<QTableView>();
 }
 

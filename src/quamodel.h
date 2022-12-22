@@ -117,9 +117,6 @@ public:
 	QUaModel(const QUaModel&) = delete;
     ~QUaModel();
 
-	// NOTE : to handle signals
-	operator QObject&() const;
-
 	template<typename X = N>
 	typename std::enable_if<std::is_pointer<X>::value, X>::type
 	nodeFromIndex(const QModelIndex& index) const;
@@ -228,7 +225,7 @@ protected:
 		node();
 
 		void * userData() const;
-		void   setUserData(const void* data);
+        void   setUserData(void* data);
 		/*QUaModel<N, I>::*/QUaNodeWrapper* findChildByData(const void* childData) const;
 
         QModelIndex index() const;
@@ -321,13 +318,7 @@ inline QUaModel<N, I>::~QUaModel()
 }
 
 template<typename N, int I>
-inline QUaModel<N, I>::operator QObject& () const
-{
-	return &m_eventer;
-}
-
-template<typename N, int I>
-inline bool QUaModel<N, I>::disconnectNodeAddedCallback(const QMetaObject::Connection& connection)
+inline bool QUaModel<N, I>::disconnectNodeAddedCallback(const QMetaObject::Connection& /*connection*/)
 {
 	return false;
 }
@@ -937,7 +928,7 @@ inline void* QUaModel<N, I>::QUaNodeWrapper::userData() const
 }
 
 template<typename N, int I>
-inline void QUaModel<N, I>::QUaNodeWrapper::setUserData(const void* data)
+inline void QUaModel<N, I>::QUaNodeWrapper::setUserData(void* data)
 {
 	m_userData = data;
 }

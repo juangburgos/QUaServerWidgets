@@ -366,7 +366,7 @@ void Dialog::setupTreeNodes()
             qDebug() << "copy" << node->nodeId();
             mime->setText(
                 mime->text().isEmpty() ?
-                node->nodeId() :
+                (QString)node->nodeId() :
                 mime->text() + ", " + node->nodeId()
             );
         }
