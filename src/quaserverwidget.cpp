@@ -386,7 +386,11 @@ void QUaServerWidget::on_pushButtonLoadCertificate_clicked()
 	// read from file
 	QString strFileName = QFileDialog::getOpenFileName(this, tr("Open Certificate File (DER format)"),
 		strLastPath.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : strLastPath,
-		tr("DER (*.der)"));
+        tr("DER (*.der)")
+#if defined(Q_OS_LINUX) && QT_VERSION_MAJOR == 5 && QT_VERSION_MINOR == 12
+        , nullptr, QFileDialog::DontUseNativeDialog
+#endif
+        );
 	// set in lineedit
 	this->setCertificateFile(strFileName);
 }
@@ -412,7 +416,11 @@ void QUaServerWidget::on_pushButtonLoadPrivateKey_clicked()
 	// read from file
 	QString strFileName = QFileDialog::getOpenFileName(this, tr("Open Private Key File (DER format)"),
 		strLastPath.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : strLastPath,
-		tr("DER (*.der)"));
+        tr("DER (*.der)")
+#if defined(Q_OS_LINUX) && QT_VERSION_MAJOR == 5 && QT_VERSION_MINOR == 12
+        , nullptr, QFileDialog::DontUseNativeDialog
+#endif
+        );
 	// set in lineedit
 	this->setPrivateKeyFile(strFileName);
 }

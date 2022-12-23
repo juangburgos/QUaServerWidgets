@@ -338,11 +338,11 @@ void QUaLogWidget::setupTable()
         {
             mime->setText(
                 mime->text() + m_strCsvFormat
-                .arg(log->timestamp.toLocalTime().toString(m_timeFormat))
-                .arg(QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
-                .arg(QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
-                .arg(QString(log->message))
-                .arg(m_strCsvSeparator)
+                .arg(log->timestamp.toLocalTime().toString(m_timeFormat),
+                     QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)),
+                     QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)),
+                     QString(log->message),
+                     m_strCsvSeparator)
             );
         }
         return mime;
@@ -419,7 +419,11 @@ void QUaLogWidget::on_pushButtonExportCsv_clicked()
     // select file
     QString strSaveFile = QFileDialog::getSaveFileName(this, tr("Save File"),
             m_strLastPathUsed.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : m_strLastPathUsed,
-            tr("CSV (*.csv *.txt)"));
+            tr("CSV (*.csv *.txt)")
+#if defined(Q_OS_LINUX) && QT_VERSION_MAJOR == 5 && QT_VERSION_MINOR == 12
+            , nullptr, QFileDialog::DontUseNativeDialog
+#endif
+            );
     // ignore if empty
     if (strSaveFile.isEmpty() || strSaveFile.isNull())
     {
@@ -433,11 +437,11 @@ void QUaLogWidget::on_pushButtonExportCsv_clicked()
         auto log = iter.value();
         iter++;
         strCsv = strCsv + m_strCsvFormat
-            .arg(log->timestamp.toLocalTime().toString(m_timeFormat))
-            .arg(QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
-            .arg(QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
-            .arg(QString(log->message))
-            .arg(m_strCsvSeparator);
+            .arg(log->timestamp.toLocalTime().toString(m_timeFormat),
+                 QUaLogWidget::m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)),
+                 QUaLogWidget::m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)),
+                 QString(log->message),
+                 m_strCsvSeparator);
     };
     // save to file
     QFile file(strSaveFile);
