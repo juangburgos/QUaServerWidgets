@@ -57,6 +57,9 @@ QUaLogWidgetSettings::QUaLogWidgetSettings(QWidget *parent) :
             QUaLogLevel level = ui->comboBoxLevel->currentData().value<QUaLogLevel>();
             QColorDialog diagColor(this);
             diagColor.setCurrentColor(m_logsToPaintByLevel[level].color());
+#if defined(Q_OS_LINUX) && QT_VERSION_MAJOR == 5 && QT_VERSION_MINOR == 12
+            diagColor.setOption(QColorDialog::DontUseNativeDialog);
+#endif
             // exec color diag
             if (diagColor.exec() == QDialog::Rejected)
             {

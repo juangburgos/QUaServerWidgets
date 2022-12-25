@@ -212,7 +212,7 @@ void Dialog::setupTreeCategories()
             {
                 auto indexes = ui->treeViewCategories->selectedIndexesOrigin();
                 auto categories = m_modelCategories.indexesToCategories(indexes);
-                for (auto strCategory : categories)
+                for (auto & strCategory : categories)
                 {
                     m_modelCategories.removeCategory(strCategory);
                 }
@@ -247,29 +247,29 @@ void Dialog::addMethods(QUaBaseObject* obj, const bool& isObjsFolder)
     obj->addMethod("addFolder", [this, obj](QString strName) {
 	    if (obj->browseChild(strName))
         {
-            return QString("Error : %1 already exists.").arg(strName);
+            return tr("Error : %1 already exists.").arg(strName);
         }
-        auto newFolder = obj->addFolderObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
+        auto newFolder = obj->addFolderObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name(), strName));
         this->addMethods(newFolder);
-        return QString("Success : %1 created.").arg(strName);
+        return tr("Success : %1 created.").arg(strName);
     });
     obj->addMethod("addObject", [this, obj](QString strName) {
         if (obj->browseChild(strName))
         {
-            return QString("Error : %1 already exists.").arg(strName);
+            return tr("Error : %1 already exists.").arg(strName);
         }
-        auto newObj = obj->addBaseObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
+        auto newObj = obj->addBaseObject(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name(), strName));
         this->addMethods(newObj);
-        return QString("Success : %1 created.").arg(strName);
+        return tr("Success : %1 created.").arg(strName);
     });
-    obj->addMethod("addVariable", [this, obj](QString strName) {
+    obj->addMethod("addVariable", [obj](QString strName) {
         if (obj->browseChild(strName))
         {
-            return QString("Error : %1 already exists.").arg(strName);
+            return tr("Error : %1 already exists.").arg(strName);
         }
-        auto newVar = obj->addBaseDataVariable(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name()).arg(strName));
+        auto newVar = obj->addBaseDataVariable(strName, QString("ns=0;s=%1.%2").arg(obj->browseName().name(), strName));
         newVar->setWriteAccess(true);
-        return QString("Success : %1 created.").arg(strName);
+        return tr("Success : %1 created.").arg(strName);
     });
     if (isObjsFolder)
     {

@@ -61,7 +61,7 @@ inline void Dialog::addCategory()
     auto className = T::staticMetaObject.className();
     // T category
     m_modelCategories.addCategory(className);
-    // add existing Ts
+    // add existing T's
     auto instances = m_server.typeInstances<T>();
     for (auto instance : instances)
     {
@@ -70,7 +70,7 @@ inline void Dialog::addCategory()
             instance
         );
     }
-    // add new Ts
+    // add new T's
     m_server.instanceCreated<T>(
     [this, className](T* instance) {
         m_modelCategories.addNodeToCategory(

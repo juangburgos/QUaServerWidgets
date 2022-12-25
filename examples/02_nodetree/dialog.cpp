@@ -29,8 +29,8 @@ QString Dialog::logToString(const QQueue<QUaLog>& logOut)
     {
         // construct string
         strLog += QString("[%1] : %2\n")
-            .arg(Dialog::m_logLevelMetaEnum.valueToKey(static_cast<int>(log.level)))
-            .arg(log.message.constData());
+            .arg(Dialog::m_logLevelMetaEnum.valueToKey(static_cast<int>(log.level)),
+            log.message.constData());
         // also emit to show in log tree
         emit Dialog::m_pserver->logMessage(log);
     }
@@ -458,11 +458,12 @@ void Dialog::setupTreeLogs()
     ui->treeViewLog->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->treeViewLog->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->treeViewLog->setDeleteCallback(
-    [this](QList<QUaLog*> &logs) {
+    [](QList<QUaLog*> &logs) {
         while (logs.count() > 0)
         {
             Q_ASSERT(m_hashDestroyLog.contains(logs.first()));
-            for (auto callback : m_hashDestroyLog.take(logs.takeFirst()))
+            auto callbacks = m_hashDestroyLog.take(logs.takeFirst());
+            for (auto & callback : callbacks)
             {
                 callback();
             }
@@ -475,10 +476,10 @@ void Dialog::setupTreeLogs()
         {
             mime->setText(
                 mime->text() + QString("[%1] [%2] [%3] : %4.\n")
-                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
-                .arg(m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
-                .arg(m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
-                .arg(QString(log->message))
+                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"),
+                     m_logLevelMetaEnum.valueToKey(static_cast<int>(log->level)),
+                     m_logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)),
+                     QString(log->message))
             );
         }
         return mime;
@@ -533,7 +534,7 @@ void Dialog::setupQUaBaseObjectMenu(QMenu& menu, QUaBaseObject* obj)
 	});
     menu.addSeparator();
     QString strType(obj->metaObject()->className());
-    // objectsext can add multiple children at once
+    // objects ext can add multiple children at once
     if (strType.compare("QUaBaseObjectExt", Qt::CaseSensitive) == 0)
     {
         menu.addAction(tr("Add Multiple QUaBaseObjectExt"), this,

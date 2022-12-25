@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 		timerVars.stop();
 		auto currDt = QDateTime::currentDateTimeUtc();
 		// update all variables
-		for (auto varInt : listVars)
+        for (auto & varInt : listVars)
 		{
 			varInt->setValue(
 				QRandomGenerator::global()->generate(),

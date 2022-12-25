@@ -157,10 +157,10 @@ void Dialog::setupLogTable()
         {
             mime->setText(
                 mime->text() + QString("[%1] [%2] [%3] : %4.\n")
-                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
-                .arg(logLevelMetaEnum.valueToKey(static_cast<int>(log->level)))
-                .arg(logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)))
-                .arg(QString(log->message))
+                .arg(log->timestamp.toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"),
+                     logLevelMetaEnum.valueToKey(static_cast<int>(log->level)),
+                     logCategoryMetaEnum.valueToKey(static_cast<int>(log->category)),
+                     QString(log->message))
             );
         }
         return mime;
@@ -243,12 +243,12 @@ void Dialog::setupSessionTable()
         {
             mime->setText(
                 mime->text() + QString("%1, %2, %3, %4, %5, %6.\n")
-                .arg(session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"))
-                .arg(session->sessionId())
-                .arg(session->applicationName())
-                .arg(session->address())
-                .arg(session->port())
-                .arg(session->userName())
+                .arg(session->timestamp().toLocalTime().toString("dd.MM.yyyy hh:mm:ss.zzz"),
+                     session->sessionId(),
+                     session->applicationName(),
+                     session->address(),
+                     QString("%1").arg(session->port()),
+                     session->userName())
             );
         }
         return mime;

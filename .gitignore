@@ -612,3 +612,9 @@ compile_commands.json
 *.xml
 *.sqlite-journal
 *.7z
+
+examples/01_server/01_server
+examples/02_nodetree/02_nodetree
+examples/03_typetable/03_typetable
+examples/04_logwidget/04_logwidget
+examples/05_historwidget/05_historwidget
